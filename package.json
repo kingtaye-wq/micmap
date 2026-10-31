@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "npx tsx scripts/seed-cleveland.ts",
+    "import:intake": "npx tsx scripts/import-intake-csv.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

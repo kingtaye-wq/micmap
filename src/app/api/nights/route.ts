@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublicVerifiedNights } from "@/lib/store";
+import { getPublicVerifiedNights, syncStoreFromSupabase } from "@/lib/store";
 import { matchesDayFilter, matchesGenreFilter } from "@/lib/csv-parser";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
+  await syncStoreFromSupabase();
   const { searchParams } = new URL(request.url);
   const day = searchParams.get("day") || "ALL";
   const type = searchParams.get("type") || "ALL";

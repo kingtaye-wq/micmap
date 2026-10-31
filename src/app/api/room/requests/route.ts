@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getStore,
   recordTipPayment,
   sanitizePublicText,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
 } from "@/lib/store";
 import { calculateTipBreakdown } from "@/config/brand";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const roomCode = searchParams.get("roomCode");
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const requests = roomCode
     ? store.songRequests.filter(
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const roomCode = String(body.roomCode || "CLE-018").toUpperCase();
   const night =
@@ -74,6 +77,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  await persistStoreToSupabase(store);
+
   return NextResponse.json({
     ok: true,
     songRequest: newRequest,
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { requestId, status } = body;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const reqItem = store.songRequests.find((r) => r.id === requestId);
   if (!reqItem) {
@@ -96,6 +101,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   reqItem.status = status;
+  await persistStoreToSupabase(store);
   return NextResponse.json({
     ok: true,
     songRequest: reqItem,

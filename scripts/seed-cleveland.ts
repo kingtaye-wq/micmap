@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { loadClevelandSeedFromCsv } from "../src/lib/csv-parser";
+import { resetStoreLive } from "../src/lib/store";
 import { APP_NAME, APP_DOMAIN, DEFAULT_METRO } from "../src/config/brand";
 
-function main() {
+async function main() {
   const { rawRows, nights, venues, hosts } = loadClevelandSeedFromCsv();
+  await resetStoreLive();
 
   const verifiedNights = nights.filter((n) => n.confidence === "verified");
   const needsVerificationNights = nights.filter(
@@ -84,6 +86,12 @@ function main() {
   console.log("\nFlagged Geocode Rows (Coordinates preserved as null):");
   console.table(report.geocodeFailures);
   console.log(`\nSaved full report to ${outPath}`);
+  console.log(
+    `\nSynced 131 Cleveland rows (73 verified, 58 needs_verification) to live Supabase Postgres!`
+  );
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

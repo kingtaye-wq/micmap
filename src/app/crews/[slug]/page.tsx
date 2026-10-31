@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase } from "@/lib/store";
 import { APP_NAME, APP_DOMAIN, LEGAL_COMP_OPTIONS } from "@/config/brand";
 import { HostTipAndFollowBox } from "@/components/HostTipAndFollowBox";
 import { Users, Calendar, ShieldCheck } from "lucide-react";
@@ -13,7 +13,7 @@ export default async function CrewProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const crew =
     store.artistsAndCrews.find((c) => c.slug === slug && c.kind === "crew") ||
     store.artistsAndCrews.find((c) => c.kind === "crew");

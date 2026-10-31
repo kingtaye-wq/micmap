@@ -317,4 +317,139 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await expect(page.getByTestId("brand-logo-link")).toContainText(APP_NAME);
     await expect(page.getByTestId("brand-logo-link")).toContainText(APP_DOMAIN);
   });
+
+  test("Check 11 (Amendments 1 & 2A): Staging banner + noindex headers + Map-first layout with synced Nights in View count", async ({
+    page,
+  }) => {
+    const response = await page.goto("/cleveland");
+    expect(response?.headers()["x-robots-tag"]).toContain("noindex");
+
+    await expect(page.getByTestId("staging-preview-banner")).toContainText(
+      "Preview build — staging"
+    );
+    await expect(page.getByTestId("cleveland-interactive-map")).toBeVisible();
+    await expect(page.getByTestId("map-legend")).toBeVisible();
+    await expect(page.getByTestId("nights-in-view-count")).toContainText(
+      "Showing 73 of 73 nights matching your filters"
+    );
+
+    // 72 geocoded pins on the map + 1 Location pending in list = 73 total verified nights
+    const allPins = page.getByTestId("map-pin");
+    await expect(allPins).toHaveCount(72);
+
+    // Zoom to Lakewood & West Side viewport and verify map pins and Nights in View update in sync
+    await page.getByTestId("map-region-WEST_SIDE").click();
+    const westSidePinCount = await page.getByTestId("map-pin").count();
+    expect(westSidePinCount).toBeGreaterThan(0);
+    expect(westSidePinCount).toBeLessThan(72);
+    await expect(page.getByTestId("in-view-pin-count")).toHaveText(
+      `${westSidePinCount} Pins`
+    );
+  });
+
+  test("Check 12 (Amendment 2A): Mobile 390x844 and 360x640 viewports have zero horizontal overflow and all filter controls remain reachable", async ({
+    page,
+  }) => {
+    for (const vp of [
+      { width: 390, height: 844 },
+      { width: 360, height: 640 },
+    ]) {
+      await page.setViewportSize(vp);
+      await page.goto("/cleveland");
+
+      await expect(page.getByTestId("map-filter-row-1")).toBeVisible();
+      await expect(page.getByTestId("map-filter-row-2")).toBeVisible();
+      await expect(page.getByTestId("day-chip-ALL")).toBeVisible();
+      await expect(page.getByTestId("day-chip-Friday")).toBeVisible();
+      await expect(page.getByTestId("type-filter-karaoke")).toBeVisible();
+      await expect(page.getByTestId("type-filter-open-mic")).toBeVisible();
+      await expect(page.getByTestId("genre-filter-select")).toBeVisible();
+
+      const hasHorizontalOverflow = await page.evaluate(() => {
+        return (
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth
+        );
+      });
+      expect(hasHorizontalOverflow).toBe(false);
+    }
+  });
+
+  test("Check 13 (Amendment 2A Coordinate Discipline): Null-coordinate rows never render a map pin and appear list-only with Location pending badge", async ({
+    page,
+  }) => {
+    await page.goto("/cleveland");
+
+    // Imposters Theater (night-59) is verified but has no street address in CSV -> 0 map pins
+    const impostersPin = page.locator(
+      '[data-testid="map-pin"][data-night-id="night-59"]'
+    );
+    await expect(impostersPin).toHaveCount(0);
+
+    // Imposters Theater appears in the list with Location pending badge
+    const impostersCard = page.locator(
+      '[data-testid="verified-night-card"][data-night-id="night-59"]'
+    );
+    await expect(impostersCard).toHaveCount(1);
+    await expect(impostersCard).toHaveAttribute("data-has-coords", "false");
+    await expect(
+      impostersCard.getByTestId("location-pending-badge")
+    ).toContainText("Location pending");
+
+    // Town House Tavern (night-127, needs_verification) is neither pinned nor in the public list
+    await expect(
+      page.locator('[data-testid="map-pin"][data-night-id="night-127"]')
+    ).toHaveCount(0);
+    await expect(
+      page.locator(
+        '[data-testid="verified-night-card"][data-night-id="night-127"]'
+      )
+    ).toHaveCount(0);
+  });
+
+  test("Check 14 (Amendment 2B): Admin CSV Update-Intake lands strictly in needs_verification in Supabase and promotes live via Verify & Publish", async ({
+    page,
+  }) => {
+    await page.goto("/admin/import");
+    await expect(page.getByTestId("admin-import-panel")).toBeVisible();
+
+    await page
+      .getByTestId("intake-source-input")
+      .fill("Playwright Intake Verification Pass");
+    await page.getByTestId("intake-date-input").fill("2026-10-31");
+    await page.getByTestId("submit-intake-import-btn").click();
+
+    // Imported row must land in needs_verification (58 -> 59), never straight to public (remains 73)
+    await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
+      "59"
+    );
+    await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
+      "73"
+    );
+    await expect(
+      page.getByTestId("admin-verification-queue-list")
+    ).toContainText("The Happy Dog Intake Test");
+    await expect(
+      page.getByTestId("admin-verification-queue-list")
+    ).toContainText("Playwright Intake Verification Pass");
+
+    // Now click Verify & Publish on the newly imported row (night-132)
+    const importedRow = page.locator(
+      '[data-testid="admin-verification-row"][data-night-id="night-132"]'
+    );
+    await importedRow.getByTestId("verify-and-publish-btn").click();
+
+    await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
+      "74"
+    );
+    await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
+      "58"
+    );
+
+    // Refresh public discovery and confirm 74 Verified Public Nights persists from Supabase DB
+    await page.goto("/cleveland");
+    await expect(page.getByTestId("public-verified-count")).toContainText(
+      "74 Verified Public Nights"
+    );
+  });
 });

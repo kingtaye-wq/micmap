@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getAdminVerificationQueue,
   getPublicVerifiedNights,
-  getStore,
   verifyAndPublishNight,
   setNightDaysAgoConfirmed,
-  resetStore,
+  resetStoreLive,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
+  upsertNightsToSupabase,
 } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const verificationQueue = getAdminVerificationQueue();
   const publicVerified = getPublicVerifiedNights();
   const staleWarning = store.nights.filter(
@@ -31,6 +35,7 @@ export async function GET() {
     verificationQueue,
     staleWarning,
     expired90d,
+    intakeBatches: store.intakeBatches || [],
   });
 }
 
@@ -39,15 +44,19 @@ export async function POST(request: NextRequest) {
   const { action, nightId, daysAgo } = body;
 
   if (action === "reset_store") {
-    resetStore();
+    await resetStoreLive();
     return NextResponse.json({ ok: true, action: "reset_store" });
   }
+
+  const store = await syncStoreFromSupabase();
 
   if (action === "verify_and_publish") {
     const promoted = verifyAndPublishNight(nightId);
     if (!promoted) {
       return NextResponse.json({ error: "Night not found" }, { status: 404 });
     }
+    await persistStoreToSupabase(store);
+    await upsertNightsToSupabase([promoted]);
     return NextResponse.json({
       ok: true,
       promotedNight: promoted,
@@ -57,12 +66,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "archive") {
-    const store = getStore();
     const night = store.nights.find((n) => n.id === nightId);
     if (!night) {
       return NextResponse.json({ error: "Night not found" }, { status: 404 });
     }
     night.confidence = "archived";
+    await persistStoreToSupabase(store);
     return NextResponse.json({
       ok: true,
       archivedNight: night,
@@ -76,6 +85,8 @@ export async function POST(request: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Night not found" }, { status: 404 });
     }
+    await persistStoreToSupabase(store);
+    await upsertNightsToSupabase([updated]);
     return NextResponse.json({
       ok: true,
       updatedNight: updated,

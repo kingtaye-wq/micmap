@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore, recordTipPayment } from "@/lib/store";
+import {
+  recordTipPayment,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
+} from "@/lib/store";
 import {
   calculateTipBreakdown,
   evaluatePayoutStatus,
@@ -7,10 +11,12 @@ import {
   TIP_PLATFORM_FEE_BPS,
 } from "@/config/brand";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const recipientSlug = searchParams.get("recipientSlug");
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const tips = recipientSlug
     ? store.tips.filter((t) => t.recipientSlug === recipientSlug)
@@ -40,6 +46,7 @@ export async function GET(request: NextRequest) {
  * Calculates exact 5% platform fee ($0.50 on a $10.00 tip) and queues payout only at >= $25.00.
  */
 export async function POST(request: NextRequest) {
+  const store = await syncStoreFromSupabase();
   const body = await request.json();
   const grossCents = Number(body.grossCents || 1000);
   const recipientSlug = String(
@@ -60,6 +67,7 @@ export async function POST(request: NextRequest) {
     tipperName,
     grossCents,
   });
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,

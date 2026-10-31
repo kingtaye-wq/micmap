@@ -1,10 +1,11 @@
-import { getPublicVerifiedNights } from "@/lib/store";
+import { getPublicVerifiedNights, syncStoreFromSupabase } from "@/lib/store";
 import { DiscoveryView } from "@/components/DiscoveryView";
 import { DEFAULT_CITY, DEFAULT_METRO } from "@/config/brand";
 
 export const dynamic = "force-dynamic";
 
-export default function ClevelandDirectoryPage() {
+export default async function ClevelandDirectoryPage() {
+  await syncStoreFromSupabase();
   const verifiedNights = getPublicVerifiedNights();
   return (
     <DiscoveryView

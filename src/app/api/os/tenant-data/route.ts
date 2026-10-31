@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore, TEST_ACCOUNTS, sanitizePublicText } from "@/lib/store";
+import {
+  TEST_ACCOUNTS,
+  sanitizePublicText,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
+  upsertNightsToSupabase,
+} from "@/lib/store";
 import { computeFreshness } from "@/lib/csv-parser";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Tenant-Isolated Mic Map OS API (mvp-build-packet.md §6 & §8.4)
@@ -42,7 +50,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const hostProfile = store.hosts.find((h) => h.tenantId === effectiveTenantId);
   const nights = store.nights.filter((n) => n.tenantId === effectiveTenantId);
   const follows = store.follows.filter((f) => f.tenantId === effectiveTenantId);
@@ -92,7 +100,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const effectiveTenantId = targetTenantId || actor.tenantId;
   const host = store.hosts.find((h) => h.tenantId === effectiveTenantId);
 
@@ -103,6 +111,7 @@ export async function PATCH(request: NextRequest) {
         sanitizePublicText(String(g))
       );
     }
+    await persistStoreToSupabase(store);
     return NextResponse.json({ ok: true, hostProfile: host });
   }
 
@@ -145,6 +154,8 @@ export async function PATCH(request: NextRequest) {
     night.daysSinceConfirmed = daysSinceConfirmed;
     night.freshnessStatus = freshnessStatus;
 
+    await persistStoreToSupabase(store);
+    await upsertNightsToSupabase([night]);
     return NextResponse.json({ ok: true, night });
   }
 
@@ -172,6 +183,7 @@ export async function PATCH(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
     store.notificationEvents.unshift(event);
+    await persistStoreToSupabase(store);
     return NextResponse.json({
       ok: true,
       notificationEvent: event,

@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   title: `${APP_NAME} (${APP_DOMAIN}) — ${DEFAULT_METRO} Karaoke & Open Mic Map`,
   description: `Every karaoke and open mic night in ${DEFAULT_METRO} on one map, with verified genre-fit per night (primary genre, also welcome, not a fit), follow + QR tip pages, and ${APP_NAME} OS.`,
   manifest: "/manifest.json",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
@@ -23,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark overflow-x-hidden">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -36,7 +40,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="flex min-h-screen flex-col bg-[#0B0B14] text-[#F8F9FA] antialiased">
+      <body className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0B0B14] text-[#F8F9FA] antialiased">
         <Navbar />
         <main className="flex-1">{children}</main>
         <footer className="no-print border-t border-white/10 bg-[#151525] py-8 text-xs text-[#A0A3BD]">

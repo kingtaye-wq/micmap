@@ -1,9 +1,10 @@
-import { getPublicVerifiedNights } from "@/lib/store";
+import { getPublicVerifiedNights, syncStoreFromSupabase } from "@/lib/store";
 import { DiscoveryView } from "@/components/DiscoveryView";
 
 export const dynamic = "force-dynamic";
 
-export default function TonightPage() {
+export default async function TonightPage() {
+  await syncStoreFromSupabase();
   const verifiedNights = getPublicVerifiedNights();
   return (
     <DiscoveryView

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase } from "@/lib/store";
 import { NightAndVenueActions } from "@/components/NightAndVenueActions";
 import {
   MapPin,
@@ -20,7 +20,7 @@ export default async function NightDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const night = store.nights.find(
     (n) => n.slug === slug || n.id === slug || n.venueSlug === slug
   );

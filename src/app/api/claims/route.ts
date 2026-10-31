@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore, sanitizePublicText } from "@/lib/store";
+import {
+  sanitizePublicText,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
+  upsertNightsToSupabase,
+} from "@/lib/store";
 import { computeFreshness } from "@/lib/csv-parser";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   return NextResponse.json({
     claims: store.claims,
   });
@@ -16,7 +23,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const newClaim = {
     id: `claim-${Date.now()}`,
@@ -55,6 +62,8 @@ export async function POST(request: NextRequest) {
     createdAt: new Date().toISOString(),
   });
 
+  await persistStoreToSupabase(store);
+
   return NextResponse.json({
     ok: true,
     message:
@@ -66,7 +75,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { claimId, decision } = body;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const claim = store.claims.find((c) => c.id === claimId);
   if (!claim) {
@@ -124,7 +133,12 @@ export async function PATCH(request: NextRequest) {
       night.freshnessStatus = freshnessStatus;
       updatedNight = night;
     });
+    if (matchingNights.length > 0) {
+      await upsertNightsToSupabase(matchingNights);
+    }
   }
+
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,

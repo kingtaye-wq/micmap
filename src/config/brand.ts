@@ -13,6 +13,9 @@ export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || `https://${APP_DOMAIN}`;
 export const SUPPORT_EMAIL =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL || `support@${APP_DOMAIN}`;
+export const ENV_LABEL = process.env.NEXT_PUBLIC_ENV_LABEL || "staging";
+export const STAGING_BANNER_TEXT =
+  "Preview build — staging (not promoted to production · micmap.co DNS untouched)";
 
 export const SOCIAL_HANDLES = {
   instagram: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM || "@micmap.co",

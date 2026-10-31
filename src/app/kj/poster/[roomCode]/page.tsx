@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase } from "@/lib/store";
 import { APP_NAME, APP_DOMAIN } from "@/config/brand";
 import { generateQrSvgString } from "@/lib/qr-svg";
 import { PrintPosterButton } from "@/components/PrintPosterButton";
@@ -18,7 +18,7 @@ export default async function KjPrintablePosterPage({
   const { host: hostParam } = await searchParams;
   const normalizedCode = (roomCode || "CLE-018").toUpperCase();
 
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const night =
     store.nights.find((n) => n.roomCode.toUpperCase() === normalizedCode) ||
     store.nights.find((n) => n.id === "night-18")!;

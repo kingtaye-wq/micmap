@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase } from "@/lib/store";
 import { APP_NAME, APP_DOMAIN } from "@/config/brand";
 import { HostTipAndFollowBox } from "@/components/HostTipAndFollowBox";
 import { Music, Calendar, Sparkles } from "lucide-react";
@@ -13,7 +13,7 @@ export default async function ArtistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const artist =
     store.artistsAndCrews.find((a) => a.slug === slug && a.kind === "artist") ||
     store.artistsAndCrews.find((a) => a.kind === "artist");

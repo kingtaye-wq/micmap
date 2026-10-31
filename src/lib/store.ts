@@ -4,6 +4,7 @@ import {
   HostProfile,
   loadClevelandSeedFromCsv,
   computeFreshness,
+  parseIntakeCsvRows,
 } from "./csv-parser";
 import {
   calculateTipBreakdown,
@@ -210,6 +211,15 @@ export interface ArtistOrCrewProfile {
   }[];
 }
 
+export interface IntakeBatchRecord {
+  id: string;
+  source: string;
+  intakeDate: string;
+  rowsImported: number;
+  rowIds: string[];
+  createdAt: string;
+}
+
 export interface MicMapStoreState {
   nights: NightRecord[];
   venues: VenueGroup[];
@@ -223,6 +233,7 @@ export interface MicMapStoreState {
   promotions: PromotionRecord[];
   moderationReports: ModerationReport[];
   notificationEvents: NotificationEventItem[];
+  intakeBatches?: IntakeBatchRecord[];
   checkIns: {
     id: string;
     nightId: string;
@@ -613,6 +624,7 @@ function createInitialStore(): MicMapStoreState {
     promotions,
     moderationReports,
     notificationEvents,
+    intakeBatches: [],
     checkIns: [
       {
         id: "chk-1",
@@ -624,6 +636,28 @@ function createInitialStore(): MicMapStoreState {
       },
     ],
   };
+}
+
+const SUPABASE_STAGING_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  "https://iwtqkzcwfiertrlhvkhn.supabase.co";
+
+const SUPABASE_STAGING_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3dHFremN3ZmllcnRybGh2a2huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzODE3MDIsImV4cCI6MjA5Nzk1NzcwMn0.Zd9pXsQJWlvr1N2nlRGgUJE54l-MMAMnNv9sBZck_1A";
+
+function getSupabaseHeaders(prefer?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    apikey: SUPABASE_STAGING_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_STAGING_ANON_KEY}`,
+    "Content-Type": "application/json",
+  };
+  if (prefer) {
+    headers["Prefer"] = prefer;
+  }
+  return headers;
 }
 
 const globalForMicMap = globalThis as unknown as {
@@ -640,6 +674,195 @@ export function getStore(): MicMapStoreState {
 export function resetStore(): MicMapStoreState {
   globalForMicMap.__micMapStore = createInitialStore();
   return globalForMicMap.__micMapStore;
+}
+
+/**
+ * Upsert relational night rows into public.micmap_staging_nights in Supabase Postgres
+ */
+export async function upsertNightsToSupabase(
+  nights: NightRecord[]
+): Promise<void> {
+  if (!nights || nights.length === 0) return;
+  try {
+    const rows = nights.map((n) => ({
+      id: n.id,
+      row_number: n.csvRowNumber,
+      venue_name: n.venueName,
+      venue_slug: n.venueSlug,
+      night_slug: n.slug,
+      event_type: n.nightType,
+      confidence:
+        n.confidence === "verified" ? "verified" : "needs_verification",
+      neighborhood: n.neighborhood,
+      address: n.address,
+      lat: n.lat,
+      lng: n.lng,
+      geocode_status: n.geocodeStatus,
+      day_of_week: n.dayOfWeek,
+      start_time: n.startTime,
+      host_or_kj: n.hostOrKj,
+      primary_genre: n.primaryGenre,
+      last_confirmed_text: n.lastConfirmedText,
+      last_verified_at: n.lastVerifiedAt,
+      payload: n,
+      updated_at: new Date().toISOString(),
+    }));
+    await fetch(`${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_nights`, {
+      method: "POST",
+      headers: getSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
+      body: JSON.stringify(rows),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[MicMap Supabase] upsertNightsToSupabase error:", err);
+  }
+}
+
+/**
+ * Persist the authoritative store state into public.micmap_staging_store in Supabase Postgres
+ */
+export async function persistStoreToSupabase(
+  store?: MicMapStoreState
+): Promise<void> {
+  const current = store || getStore();
+  globalForMicMap.__micMapStore = current;
+  try {
+    await fetch(`${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_store`, {
+      method: "POST",
+      headers: getSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
+      body: JSON.stringify({
+        id: "default",
+        state: current,
+        updated_at: new Date().toISOString(),
+      }),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[MicMap Supabase] persistStoreToSupabase error:", err);
+  }
+}
+
+/**
+ * Pull live store state from Supabase Postgres (public.micmap_staging_store).
+ * If not yet seeded in Supabase, seeds the 131 Cleveland rows automatically.
+ */
+export async function syncStoreFromSupabase(): Promise<MicMapStoreState> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_store?id=eq.default&select=state,updated_at`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(),
+        cache: "no-store",
+      }
+    );
+    if (res.ok) {
+      const rows = (await res.json()) as { state: MicMapStoreState }[];
+      if (rows && rows.length > 0 && rows[0].state?.nights?.length) {
+        globalForMicMap.__micMapStore = rows[0].state;
+        return rows[0].state;
+      }
+      // Seed initial store into Supabase
+      const initial = createInitialStore();
+      globalForMicMap.__micMapStore = initial;
+      await persistStoreToSupabase(initial);
+      await upsertNightsToSupabase(initial.nights);
+      return initial;
+    }
+  } catch (err) {
+    console.error("[MicMap Supabase] syncStoreFromSupabase error:", err);
+  }
+  return getStore();
+}
+
+/**
+ * Reset store in memory AND in live Supabase Postgres back to the clean 131 Cleveland seed state
+ */
+export async function resetStoreLive(): Promise<MicMapStoreState> {
+  const fresh = createInitialStore();
+  globalForMicMap.__micMapStore = fresh;
+  try {
+    // Delete any imported intake rows beyond row 131 in micmap_staging_nights
+    await fetch(
+      `${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_nights?row_number=gt.131`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders("return=minimal"),
+        cache: "no-store",
+      }
+    );
+  } catch {
+    // ignore
+  }
+  await persistStoreToSupabase(fresh);
+  await upsertNightsToSupabase(fresh.nights);
+  return fresh;
+}
+
+/**
+ * Import update-intake CSV rows into confidence = "needs_verification" in Supabase Postgres
+ */
+export async function importIntakeCsvToQueue(params: {
+  csvContent: string;
+  source: string;
+  intakeDate: string;
+}): Promise<{ importedNights: NightRecord[]; batch: IntakeBatchRecord }> {
+  const store = await syncStoreFromSupabase();
+  const maxRow = store.nights.reduce(
+    (max, n) => Math.max(max, n.csvRowNumber || 0),
+    131
+  );
+  const importedNights = parseIntakeCsvRows({
+    csvContent: params.csvContent,
+    startingRowNumber: maxRow + 1,
+    source: params.source,
+    intakeDate: params.intakeDate,
+  });
+
+  if (importedNights.length > 0) {
+    store.nights.push(...importedNights);
+  }
+
+  const batch: IntakeBatchRecord = {
+    id: `intake-${Date.now()}`,
+    source: params.source,
+    intakeDate: params.intakeDate,
+    rowsImported: importedNights.length,
+    rowIds: importedNights.map((n) => n.id),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!store.intakeBatches) {
+    store.intakeBatches = [];
+  }
+  store.intakeBatches.unshift(batch);
+
+  await persistStoreToSupabase(store);
+  if (importedNights.length > 0) {
+    await upsertNightsToSupabase(importedNights);
+  }
+  try {
+    await fetch(
+      `${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_intake_batches`,
+      {
+        method: "POST",
+        headers: getSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
+        body: JSON.stringify({
+          id: batch.id,
+          source: batch.source,
+          intake_date: batch.intakeDate,
+          rows_imported: batch.rowsImported,
+          row_ids: batch.rowIds,
+          created_at: batch.createdAt,
+        }),
+        cache: "no-store",
+      }
+    );
+  } catch {
+    // ignore
+  }
+
+  return { importedNights, batch };
 }
 
 /**

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase, persistStoreToSupabase } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const targetSlug = String(
     body.targetSlug || "shell-yeah-events-by-meshell"
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
     createdAt: new Date().toISOString(),
   };
   store.notificationEvents.unshift(notif);
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,

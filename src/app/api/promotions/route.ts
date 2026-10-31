@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   containsBannedAlcoholCompLanguage,
-  getStore,
   sanitizePublicText,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
 } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   return NextResponse.json({
     promotions: store.promotions,
   });
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const promo = {
     id: `promo-${Date.now()}`,
     venueSlug: String(body.venueSlug || "time-warp-bar"),
@@ -56,6 +59,7 @@ export async function POST(request: NextRequest) {
   };
 
   store.promotions.unshift(promo);
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,

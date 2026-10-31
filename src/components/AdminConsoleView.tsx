@@ -12,10 +12,17 @@ import {
   Clock,
   RefreshCw,
   ExternalLink,
+  Upload,
 } from "lucide-react";
 
 interface AdminConsoleViewProps {
-  defaultTab?: "verification" | "claims" | "corrections" | "stale" | "moderation";
+  defaultTab?:
+    | "verification"
+    | "import"
+    | "claims"
+    | "corrections"
+    | "stale"
+    | "moderation";
 }
 
 export function AdminConsoleView({
@@ -70,6 +77,23 @@ export function AdminConsoleView({
       status: string;
     }[]
   >([]);
+  const [intakeBatches, setIntakeBatches] = useState<
+    {
+      id: string;
+      source: string;
+      intakeDate: string;
+      rowsImported: number;
+      rowIds: string[];
+      createdAt: string;
+    }[]
+  >([]);
+  const [intakeSource, setIntakeSource] = useState(
+    "Dre / Weekly Cleveland Venue Pass"
+  );
+  const [intakeDate, setIntakeDate] = useState("2026-10-31");
+  const [intakeCsvText, setIntakeCsvText] = useState(
+    `venue_name,neighborhood_city,address,day_of_week,start_time,type,host_or_KJ,primary_genre,also_welcome,not_a_fit,genre_basis,signup_method,cover,age,source_url,last_confirmed,confidence,phone,venue_website,facebook,instagram\nThe Happy Dog Intake Test,Detroit Shoreway,"5801 Detroit Ave, Cleveland, OH",Wednesday,9:00 PM,karaoke,KJ Test Host,Rock,"Pop/Top 40, Throwbacks/Oldies",UNKNOWN,Update intake pass,Paper slip,Free,21+,https://happydogcleveland.com,2026-10-31,verified,216-651-9474,https://happydogcleveland.com,,`
+  );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   async function refreshAll() {
@@ -90,6 +114,8 @@ export function AdminConsoleView({
     if (Array.isArray(verData.staleWarning))
       setStaleWarning(verData.staleWarning);
     if (Array.isArray(verData.expired90d)) setExpired90d(verData.expired90d);
+    if (Array.isArray(verData.intakeBatches))
+      setIntakeBatches(verData.intakeBatches);
     if (Array.isArray(claimsData.claims)) setClaims(claimsData.claims);
     if (Array.isArray(corrData.corrections))
       setCorrections(corrData.corrections);
@@ -163,6 +189,29 @@ export function AdminConsoleView({
     });
     setStatusMessage(`Community correction ${decision}!`);
     await refreshAll();
+  }
+
+  async function handleIntakeCsvImport(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await fetch("/api/admin/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        csvContent: intakeCsvText,
+        source: intakeSource,
+        intakeDate,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setStatusMessage(
+        `Imported ${data.importedCount} row(s) from "${intakeSource}" (${intakeDate}) into Needs Verification Queue (${data.needsVerificationCount} in queue · ${data.publicVerifiedCount} public verified).`
+      );
+      await refreshAll();
+      setActiveTab("verification");
+    } else if (data.error) {
+      setStatusMessage(`Import error: ${data.error}`);
+    }
   }
 
   return (
@@ -256,6 +305,19 @@ export function AdminConsoleView({
             data-testid="tab-verification"
           >
             Verification Queue ({verificationQueue.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("import")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+              activeTab === "import"
+                ? "bg-[#00F0FF] text-[#0B0B14]"
+                : "bg-[#0B0B14] text-[#A0A3BD] hover:text-white"
+            }`}
+            data-testid="tab-import"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            <span>Update-Intake CSV Import</span>
           </button>
           <button
             type="button"
@@ -364,7 +426,10 @@ export function AdminConsoleView({
                   {row.alsoWelcome}
                 </p>
                 <p className="mt-0.5 text-[11px] text-[#A0A3BD]">
-                  Notes: {row.genreBasis}
+                  Notes: {row.genreBasis} • Source/Stamp:{" "}
+                  <span className="font-semibold text-[#FFB800]">
+                    {row.lastConfirmedText}
+                  </span>
                 </p>
               </div>
 
@@ -389,6 +454,105 @@ export function AdminConsoleView({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Tab 1B: Update-Intake CSV Import */}
+      {activeTab === "import" && (
+        <div
+          className="mt-6 rounded-3xl border border-[#00F0FF]/30 bg-[#151525] p-6"
+          data-testid="admin-import-panel"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display flex items-center gap-2 text-xl font-bold text-[#F8F9FA]">
+                <Upload className="h-5 w-5 text-[#00F0FF]" />
+                <span>Update-Intake CSV Importer (Quarantined to Verification Queue)</span>
+              </h2>
+              <p className="mt-1 text-xs text-[#A0A3BD]">
+                Accepts rows in <code>cleveland-venues-master.csv</code> column format. Every imported row lands strictly in{" "}
+                <strong className="text-[#FFB800]">confidence = needs_verification</strong> on{" "}
+                <code>/admin/verification-queue</code> (never straight to public), stamped with source + date.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleIntakeCsvImport} className="mt-5 space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A3BD]">
+                  Intake Source / Researcher Pass
+                </label>
+                <input
+                  type="text"
+                  value={intakeSource}
+                  onChange={(e) => setIntakeSource(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3.5 py-2 text-xs text-[#F8F9FA]"
+                  data-testid="intake-source-input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A3BD]">
+                  Intake Date (YYYY-MM-DD)
+                </label>
+                <input
+                  type="text"
+                  value={intakeDate}
+                  onChange={(e) => setIntakeDate(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3.5 py-2 text-xs text-[#F8F9FA]"
+                  data-testid="intake-date-input"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#A0A3BD]">
+                CSV Rows (<code>cleveland-venues-master.csv</code> 21-column format)
+              </label>
+              <textarea
+                rows={5}
+                value={intakeCsvText}
+                onChange={(e) => setIntakeCsvText(e.target.value)}
+                className="font-mono-code mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] p-3 text-xs text-[#F8F9FA]"
+                data-testid="intake-csv-textarea"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00F0FF] px-5 py-2.5 text-xs font-bold text-[#0B0B14] shadow-lg hover:opacity-90"
+              data-testid="submit-intake-import-btn"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Import Rows to Verification Queue (needs_verification)</span>
+            </button>
+          </form>
+
+          {intakeBatches.length > 0 && (
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#A0A3BD]">
+                Recent Update-Intake Batches ({intakeBatches.length})
+              </h3>
+              <div className="mt-2 space-y-2">
+                {intakeBatches.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#0B0B14] px-3.5 py-2 text-xs"
+                  >
+                    <span className="font-bold text-[#F8F9FA]">
+                      {b.source} ({b.intakeDate})
+                    </span>
+                    <span className="text-[#FFB800]">
+                      {b.rowsImported} row(s) → needs_verification ({b.rowIds.join(", ")})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -789,7 +789,7 @@ export function matchesGenreFilter(
 }
 
 /**
- * Day-of-week filter matching (supports Monday..Sunday, "Tonight", or "ALL")
+ * Day-of-week filter matching (supports Monday..Sunday, "Tonight", "Tomorrow", "Weekend", or "ALL")
  */
 export function matchesDayFilter(
   night: Pick<NightRecord, "dayOfWeek" | "formatType">,
@@ -802,13 +802,187 @@ export function matchesDayFilter(
   if (!day || day.toUpperCase() === "UNKNOWN") {
     return false;
   }
-  const target = selectedDay.toLowerCase().trim();
+  const rawTarget = selectedDay.toLowerCase().trim();
   const dayLower = day.toLowerCase();
 
+  if (rawTarget === "weekend" || rawTarget === "this weekend") {
+    return (
+      dayLower.includes("friday") ||
+      dayLower.includes("saturday") ||
+      dayLower.includes("sunday") ||
+      dayLower === "thursday-sunday"
+    );
+  }
+
+  const target =
+    rawTarget === "tonight"
+      ? "friday"
+      : rawTarget === "tomorrow"
+      ? "saturday"
+      : rawTarget;
+
   if (dayLower.includes(target)) return true;
-  // Handle "Thursday-Sunday" range for Galaxy KTV
   if (dayLower === "thursday-sunday") {
     return ["thursday", "friday", "saturday", "sunday"].includes(target);
   }
   return false;
+}
+
+/**
+ * Parse update-intake CSV rows in cleveland-venues-master.csv format.
+ * Per Amendment 2B: Every imported row lands strictly in confidence = "needs_verification"
+ * on /admin/verification-queue (never straight to public), stamped with source + intake_date.
+ */
+export function parseIntakeCsvRows(params: {
+  csvContent: string;
+  startingRowNumber: number;
+  source: string;
+  intakeDate: string;
+}): NightRecord[] {
+  const parsedRows = parseRawCsvText(params.csvContent.trim());
+  if (parsedRows.length === 0) return [];
+
+  // Detect if row 0 is a header row
+  const firstCell = (parsedRows[0][0] || "").trim().toLowerCase();
+  const dataRows =
+    firstCell === "venue_name" || firstCell === "venue name"
+      ? parsedRows.slice(1)
+      : parsedRows;
+
+  const createdNights: NightRecord[] = [];
+
+  dataRows.forEach((cols, idx) => {
+    const venueName = (cols[0] || "").trim();
+    if (!venueName) return;
+
+    const csvRowNumber = params.startingRowNumber + idx;
+    const neighborhood = (cols[1] || "Cleveland, OH").trim();
+    const address = (cols[2] || "").trim();
+    const rawDay = (cols[3] || "").trim();
+    const rawStart = (cols[4] || "").trim();
+    const rawType = ((cols[5] || "karaoke").trim().toLowerCase() === "open mic"
+      ? "open mic"
+      : "karaoke") as "karaoke" | "open mic";
+    const rawHost = (cols[6] || "").trim();
+    const rawPrimaryGenre = (cols[7] || "").trim();
+    const rawAlsoWelcome = (cols[8] || "").trim();
+    const rawNotAFit = (cols[9] || "").trim();
+    const rawGenreBasis = (cols[10] || "").trim();
+    const rawSignup = (cols[11] || "").trim();
+    const rawCover = (cols[12] || "").trim();
+    const rawAge = (cols[13] || "").trim();
+    const rawSourceUrl = (cols[14] || "").trim();
+    const rawLastConfirmed = (cols[15] || "").trim();
+    const rawPhone = (cols[17] || "").trim();
+    const rawWebsite = (cols[18] || "").trim();
+    const rawFacebook = (cols[19] || "").trim();
+    const rawInstagram = (cols[20] || "").trim();
+
+    const canonicalVenueName = getCanonicalVenueName(venueName);
+    const venueSlug = slugify(canonicalVenueName);
+    const venueId = `venue-${venueSlug}`;
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let geocodeStatus: "geocoded" | "missing_address" | "failed" =
+      "missing_address";
+    if (address) {
+      const geo = ADDRESS_GEOCODE_LOOKUP[address];
+      if (geo) {
+        lat = geo.lat;
+        lng = geo.lng;
+        geocodeStatus = "geocoded";
+      } else {
+        geocodeStatus = "failed";
+      }
+    }
+
+    const dayOfWeek = rawDay || "UNKNOWN";
+    const startTime = rawStart || "UNKNOWN";
+    const hostOrKj = rawHost || "UNKNOWN";
+    const primaryGenre =
+      !rawPrimaryGenre || rawPrimaryGenre.toUpperCase() === "UNKNOWN"
+        ? "UNKNOWN"
+        : rawPrimaryGenre;
+    const alsoWelcome =
+      !rawAlsoWelcome || rawAlsoWelcome.toUpperCase() === "UNKNOWN"
+        ? "UNKNOWN"
+        : rawAlsoWelcome;
+    const notAFit =
+      !rawNotAFit || rawNotAFit.toUpperCase() === "UNKNOWN"
+        ? "UNKNOWN"
+        : rawNotAFit;
+
+    const genreVibeTags =
+      primaryGenre !== "UNKNOWN" && alsoWelcome !== "UNKNOWN"
+        ? `${primaryGenre} • Also welcome: ${alsoWelcome}`
+        : primaryGenre !== "UNKNOWN"
+        ? primaryGenre
+        : alsoWelcome !== "UNKNOWN"
+        ? `Also welcome: ${alsoWelcome}`
+        : "UNKNOWN";
+
+    const hostInfo = getCanonicalHostInfo(rawHost);
+    const nightSlug = slugify(
+      `${venueName}-${dayOfWeek !== "UNKNOWN" ? dayOfWeek : `intake-${csvRowNumber}`}-${csvRowNumber}`
+    );
+    const roomCode = `CLE-${String(csvRowNumber).padStart(3, "0")}`;
+    const lastVerifiedAt = new Date(
+      params.intakeDate ? `${params.intakeDate}T12:00:00Z` : "2026-10-31T12:00:00Z"
+    ).toISOString();
+    const { daysSinceConfirmed, freshnessStatus } =
+      computeFreshness(lastVerifiedAt);
+
+    createdNights.push({
+      id: `night-${csvRowNumber}`,
+      csvRowNumber,
+      slug: nightSlug,
+      roomCode,
+      venueId,
+      venueSlug,
+      venueName,
+      canonicalVenueName,
+      neighborhood,
+      address,
+      lat,
+      lng,
+      geocodeStatus,
+      dayOfWeek,
+      rawDayOfWeek: rawDay,
+      startTime,
+      rawStartTime: rawStart,
+      endTime: "UNKNOWN",
+      nightType: rawType === "open mic" ? "open_mic" : "karaoke",
+      nightTypeLabel: rawType === "open mic" ? "Open Mic" : "Karaoke",
+      formatType: rawType === "open mic" ? "Open Mic Stage" : "Open Bar Karaoke",
+      hostOrKj,
+      hostSlug: hostInfo?.slug || null,
+      tenantId: hostInfo?.tenantId || null,
+      primaryGenre,
+      alsoWelcome,
+      notAFit,
+      genreVibeTags,
+      genreBasis:
+        rawGenreBasis || `Update intake from ${params.source} (${params.intakeDate})`,
+      assertedBy: "editorial_source",
+      signupMethod: rawSignup || "UNKNOWN",
+      cover: rawCover || "UNKNOWN",
+      agePolicy: !rawAge || rawAge.toLowerCase() === "unknown" ? "UNKNOWN" : rawAge,
+      sourceUrl: rawSourceUrl,
+      lastConfirmedText: `Intake [${params.source} · ${params.intakeDate}]${
+        rawLastConfirmed ? ` — ${rawLastConfirmed}` : " — Pending Admin Verification"
+      }`,
+      lastVerifiedAt,
+      daysSinceConfirmed,
+      freshnessStatus,
+      // HARD RULE (Amendment 2B): Every imported row lands strictly in needs_verification
+      confidence: "needs_verification",
+      phone: rawPhone,
+      venueWebsite: rawWebsite,
+      facebook: rawFacebook,
+      instagram: rawInstagram,
+    });
+  });
+
+  return createdNights;
 }

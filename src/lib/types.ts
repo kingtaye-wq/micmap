@@ -264,12 +264,45 @@ export function matchesDayFilter(
   if (!day || day.toUpperCase() === "UNKNOWN") {
     return false;
   }
-  const target = selectedDay.toLowerCase().trim();
+  const rawTarget = selectedDay.toLowerCase().trim();
   const dayLower = day.toLowerCase();
+
+  if (rawTarget === "weekend" || rawTarget === "this weekend") {
+    return (
+      dayLower.includes("friday") ||
+      dayLower.includes("saturday") ||
+      dayLower.includes("sunday") ||
+      dayLower === "thursday-sunday"
+    );
+  }
+
+  const target =
+    rawTarget === "tonight"
+      ? "friday"
+      : rawTarget === "tomorrow"
+      ? "saturday"
+      : rawTarget;
 
   if (dayLower.includes(target)) return true;
   if (dayLower === "thursday-sunday") {
     return ["thursday", "friday", "saturday", "sunday"].includes(target);
   }
   return false;
+}
+
+export function distanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

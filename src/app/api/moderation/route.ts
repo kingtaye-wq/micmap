@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore, sanitizePublicText } from "@/lib/store";
+import {
+  sanitizePublicText,
+  syncStoreFromSupabase,
+  persistStoreToSupabase,
+} from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   return NextResponse.json({
     reports: store.moderationReports,
   });
@@ -10,7 +16,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const report = {
     id: `mod-${Date.now()}`,
@@ -23,6 +29,7 @@ export async function POST(request: NextRequest) {
   };
 
   store.moderationReports.unshift(report);
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,
@@ -33,7 +40,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { reportId, status } = body;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
 
   const report = store.moderationReports.find((r) => r.id === reportId);
   if (!report) {
@@ -47,6 +54,7 @@ export async function PATCH(request: NextRequest) {
       night.confidence = "archived";
     }
   }
+  await persistStoreToSupabase(store);
 
   return NextResponse.json({
     ok: true,

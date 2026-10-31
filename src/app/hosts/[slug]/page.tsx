@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/store";
+import { syncStoreFromSupabase } from "@/lib/store";
 import { APP_NAME, APP_DOMAIN, FOUNDING_KJ_TARGETS } from "@/config/brand";
 import { generateQrSvgString } from "@/lib/qr-svg";
 import { HostTipAndFollowBox } from "@/components/HostTipAndFollowBox";
@@ -22,7 +22,7 @@ export default async function HostProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const store = getStore();
+  const store = await syncStoreFromSupabase();
   const host =
     store.hosts.find((h) => h.slug === slug) || store.hosts[0];
 
