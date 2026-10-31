@@ -1,0 +1,170 @@
+{
+  "generatedAt": "2026-10-31T18:56:51.666Z",
+  "appName": "Mic Map",
+  "appDomain": "micmap.co",
+  "metro": "Greater Cleveland",
+  "sourceFile": "data/cleveland-venues-master.csv",
+  "counts": {
+    "totalCsvRows": 131,
+    "verifiedPublicNights": 73,
+    "needsVerificationAdminQueueRows": 58,
+    "karaokeRows": 109,
+    "openMicRows": 22,
+    "canonicalUniqueVenues": 87,
+    "canonicalUniqueHostsKjs": 26,
+    "rowsWithAddressGeocoded": 129,
+    "rowsMissingAddressFlagged": 2,
+    "rowsMissingDayOfWeekPreserved": 10,
+    "rowsMissingStartTimePreserved": 42,
+    "rowsWithSourcedPrimaryGenre": 20,
+    "rowsWithUnknownNotAFit": 131
+  },
+  "geocodeFailures": [
+    {
+      "csvRowNumber": 59,
+      "venueName": "Imposters Theater",
+      "neighborhood": "Detroit Shoreway, Cleveland",
+      "confidence": "verified",
+      "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
+    },
+    {
+      "csvRowNumber": 127,
+      "venueName": "Town House Tavern",
+      "neighborhood": "Grafton",
+      "confidence": "needs_verification",
+      "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
+    }
+  ],
+  "spotChecksFirst10": [
+    {
+      "csvRowNumber": 1,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Monday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 2,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Tuesday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 3,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Wednesday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 4,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Thursday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 5,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Friday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 6,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Saturday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 7,
+      "venueName": "Corky's Place",
+      "dayOfWeek": "Sunday",
+      "startTime": "5:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://m.facebook.com/Corkys-Place-115185908504060/"
+    },
+    {
+      "csvRowNumber": 8,
+      "venueName": "Lakewood Village Tavern",
+      "dayOfWeek": "Friday",
+      "startTime": "UNKNOWN",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://karaokelist.app/karaoke/cleveland-oh/lakewood-village-tavern"
+    },
+    {
+      "csvRowNumber": 9,
+      "venueName": "Lakewood Village Tavern",
+      "dayOfWeek": "Saturday",
+      "startTime": "UNKNOWN",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://karaokelist.app/karaoke/cleveland-oh/lakewood-village-tavern"
+    },
+    {
+      "csvRowNumber": 10,
+      "venueName": "Eastland Inn",
+      "dayOfWeek": "Friday",
+      "startTime": "9:00 PM",
+      "nightType": "Karaoke",
+      "hostOrKj": "UNKNOWN",
+      "primaryGenre": "UNKNOWN",
+      "alsoWelcome": "UNKNOWN",
+      "notAFit": "UNKNOWN",
+      "confidence": "verified",
+      "sourceUrl": "https://karaokelist.app/karaoke/cleveland-oh/eastland-inn"
+    }
+  ]
+}

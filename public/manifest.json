@@ -1,0 +1,16 @@
+{
+  "name": "Mic Map — Greater Cleveland Karaoke & Open Mic Map",
+  "short_name": "Mic Map",
+  "description": "Every karaoke and open mic night in Greater Cleveland on one map, with verified genre-fit per night.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B14",
+  "theme_color": "#FF2E93",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
