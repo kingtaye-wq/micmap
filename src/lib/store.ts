@@ -776,15 +776,15 @@ export async function syncStoreFromSupabase(): Promise<MicMapStoreState> {
 }
 
 /**
- * Reset store in memory AND in live Supabase Postgres back to the clean 131 Cleveland seed state
+ * Reset store in memory AND in live Supabase Postgres back to the clean 140 Cleveland seed state
  */
 export async function resetStoreLive(): Promise<MicMapStoreState> {
   const fresh = createInitialStore();
   globalForMicMap.__micMapStore = fresh;
   try {
-    // Delete any imported intake rows beyond row 131 in micmap_staging_nights
+    // Delete any imported intake rows beyond the seeded CSV row count in micmap_staging_nights
     await fetch(
-      `${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_nights?row_number=gt.131`,
+      `${SUPABASE_STAGING_URL}/rest/v1/micmap_staging_nights?row_number=gt.${fresh.nights.length}`,
       {
         method: "DELETE",
         headers: getSupabaseHeaders("return=minimal"),
@@ -810,7 +810,7 @@ export async function importIntakeCsvToQueue(params: {
   const store = await syncStoreFromSupabase();
   const maxRow = store.nights.reduce(
     (max, n) => Math.max(max, n.csvRowNumber || 0),
-    131
+    140
   );
   const importedNights = parseIntakeCsvRows({
     csvContent: params.csvContent,

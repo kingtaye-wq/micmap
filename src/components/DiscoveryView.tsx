@@ -52,7 +52,7 @@ const CLEVELAND_CENTER = { lat: 41.4993, lng: -81.6944 };
 
 const FULL_METRO_BOUNDS = {
   north: 41.88,
-  south: 41.05,
+  south: 40.80,
   east: -80.92,
   west: -82.15,
 };

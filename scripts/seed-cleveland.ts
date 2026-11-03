@@ -87,7 +87,7 @@ async function main() {
   console.table(report.geocodeFailures);
   console.log(`\nSaved full report to ${outPath}`);
   console.log(
-    `\nSynced 131 Cleveland rows (73 verified, 58 needs_verification) to live Supabase Postgres!`
+    `\nSynced ${rawRows.length} Cleveland rows (${verifiedNights.length} verified, ${needsVerificationNights.length} needs_verification) to live Supabase Postgres!`
   );
 }
 

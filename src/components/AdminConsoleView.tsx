@@ -30,9 +30,9 @@ export function AdminConsoleView({
 }: AdminConsoleViewProps) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [counts, setCounts] = useState({
-    totalSeededRows: 131,
-    publicVerifiedCount: 73,
-    needsVerificationCount: 58,
+    totalSeededRows: 140,
+    publicVerifiedCount: 83,
+    needsVerificationCount: 57,
     stale45to89Count: 0,
     expired90dCount: 0,
   });

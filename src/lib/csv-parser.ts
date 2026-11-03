@@ -208,6 +208,15 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "24775 Lorain Rd, North Olmsted, OH": { lat: 41.4252, lng: -81.8962 },
   "7123 Mentor Ave, Willoughby, OH": { lat: 41.6442, lng: -81.3912 },
   "4629 W 130th St, Cleveland, OH": { lat: 41.4314, lng: -81.7819 },
+  "7313 Whipple Ave NW, North Canton, OH 44720": { lat: 40.8847, lng: -81.4239 },
+  "2215 E Waterloo Rd, Akron, OH 44312": { lat: 41.0246, lng: -81.4428 },
+  "17438 St Clair Ave, Cleveland, OH 44110": { lat: 41.5642, lng: -81.5584 },
+  "570 E Cuyahoga Falls Ave, Akron, OH 44310": { lat: 41.1072, lng: -81.4918 },
+  "5587 Ridge Rd, Parma, OH 44129": { lat: 41.4098, lng: -81.7352 },
+  "3822 S Main St, Akron, OH": { lat: 40.9814, lng: -81.5292 },
+  "14751 Pearl Rd, Strongsville, OH 44136": { lat: 41.3118, lng: -81.8359 },
+  "3333 Manchester Rd, Suite 3, Akron, OH 44319": { lat: 40.9968, lng: -81.5542 },
+  "4284 Beverly Hills Dr, Brunswick, OH 44212": { lat: 41.2392, lng: -81.8245 },
 };
 
 export function slugify(input: string): string {
