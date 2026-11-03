@@ -788,12 +788,18 @@ export function matchesGenreFilter(
   return { matches: false, fitLevel: "none" };
 }
 
+import {
+  getClevelandCurrentDayOfWeek,
+  getClevelandTomorrowDayOfWeek,
+} from "./types";
+
 /**
  * Day-of-week filter matching (supports Monday..Sunday, "Tonight", "Tomorrow", "Weekend", or "ALL")
  */
 export function matchesDayFilter(
   night: Pick<NightRecord, "dayOfWeek" | "formatType">,
-  selectedDay?: string | null
+  selectedDay?: string | null,
+  referenceDate: Date = new Date()
 ): boolean {
   if (!selectedDay || selectedDay === "ALL" || selectedDay.trim() === "") {
     return true;
@@ -803,29 +809,28 @@ export function matchesDayFilter(
     return false;
   }
   const rawTarget = selectedDay.toLowerCase().trim();
-  const dayLower = day.toLowerCase();
+  const dayLower = day.toLowerCase().trim();
 
   if (rawTarget === "weekend" || rawTarget === "this weekend") {
     return (
-      dayLower.includes("friday") ||
-      dayLower.includes("saturday") ||
-      dayLower.includes("sunday") ||
+      dayLower.startsWith("friday") ||
+      dayLower.startsWith("saturday") ||
+      dayLower.startsWith("sunday") ||
       dayLower === "thursday-sunday"
     );
   }
 
   const target =
     rawTarget === "tonight"
-      ? "friday"
+      ? getClevelandCurrentDayOfWeek(referenceDate).toLowerCase()
       : rawTarget === "tomorrow"
-      ? "saturday"
+      ? getClevelandTomorrowDayOfWeek(referenceDate).toLowerCase()
       : rawTarget;
 
-  if (dayLower.includes(target)) return true;
   if (dayLower === "thursday-sunday") {
     return ["thursday", "friday", "saturday", "sunday"].includes(target);
   }
-  return false;
+  return dayLower.startsWith(target);
 }
 
 /**

@@ -360,7 +360,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       await expect(page.getByTestId("map-filter-row-1")).toBeVisible();
       await expect(page.getByTestId("map-filter-row-2")).toBeVisible();
       await expect(page.getByTestId("day-chip-ALL")).toBeVisible();
-      await expect(page.getByTestId("day-chip-Friday")).toBeVisible();
+      await expect(page.getByTestId("day-chip-Tonight")).toBeVisible();
       await expect(page.getByTestId("type-filter-karaoke")).toBeVisible();
       await expect(page.getByTestId("type-filter-open-mic")).toBeVisible();
       await expect(page.getByTestId("genre-filter-select")).toBeVisible();
@@ -451,5 +451,63 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await expect(page.getByTestId("public-verified-count")).toContainText(
       "74 Verified Public Nights"
     );
+  });
+
+  test("Check 15 (Priority Bug Packet #83): /tonight dynamically shows the current America/New_York day's nights and zero wrong-day (Friday) cards", async ({
+    page,
+  }) => {
+    const liveDay = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "long",
+    }).format(new Date());
+
+    const res = await page.goto("/tonight");
+    expect(res?.headers()["cache-control"]).toContain("no-store");
+    expect(res?.headers()["x-robots-tag"]).toContain("noindex");
+
+    await expect(page.getByTestId("active-day-filter-label")).toContainText(
+      `Tonight (${liveDay})`
+    );
+
+    const cards = page.getByTestId("verified-night-card");
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Every rendered card on /tonight must match the live America/New_York day (or Thursday-Sunday if Thu-Sun)
+    for (let i = 0; i < count; i++) {
+      const cardDay =
+        (await cards.nth(i).getAttribute("data-day-of-week")) || "";
+      const lower = cardDay.toLowerCase();
+      const validForLiveDay =
+        lower.startsWith(liveDay.toLowerCase()) ||
+        (lower === "thursday-sunday" &&
+          ["thursday", "friday", "saturday", "sunday"].includes(
+            liveDay.toLowerCase()
+          ));
+      expect(validForLiveDay).toBe(true);
+      if (liveDay.toLowerCase() !== "friday") {
+        expect(lower.startsWith("friday")).toBe(false);
+      }
+    }
+
+    // Verify deterministic Monday check (3 Monday nights, 0 Friday cards, 0 Thursday-Sunday cards)
+    await page.goto("/tonight?day=Monday");
+    const mondayCards = page.getByTestId("verified-night-card");
+    await expect(mondayCards).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
+      const d =
+        (await mondayCards.nth(i).getAttribute("data-day-of-week")) || "";
+      expect(d.toLowerCase().startsWith("monday")).toBe(true);
+    }
+
+    // Verify deterministic Sunday check (7 Sunday + 1 Thursday-Sunday = 8 nights, 0 Friday cards)
+    await page.goto("/tonight?day=Sunday");
+    const sundayCards = page.getByTestId("verified-night-card");
+    await expect(sundayCards).toHaveCount(8);
+    for (let i = 0; i < 8; i++) {
+      const d =
+        (await sundayCards.nth(i).getAttribute("data-day-of-week")) || "";
+      expect(d.toLowerCase().startsWith("friday")).toBe(false);
+    }
   });
 });

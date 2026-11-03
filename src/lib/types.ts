@@ -253,9 +253,47 @@ export function matchesGenreFilter(
   return { matches: false, fitLevel: "none" };
 }
 
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+export type WeekdayName = (typeof WEEKDAYS)[number];
+
+/**
+ * Returns the live current day of week in Cleveland, OH (America/New_York timezone).
+ */
+export function getClevelandCurrentDayOfWeek(now: Date = new Date()): WeekdayName {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+  }).format(now);
+  return (
+    WEEKDAYS.find((d) => d.toLowerCase() === formatted.toLowerCase()) ||
+    "Monday"
+  );
+}
+
+/**
+ * Returns tomorrow's day of week in Cleveland, OH (America/New_York timezone).
+ */
+export function getClevelandTomorrowDayOfWeek(now: Date = new Date()): WeekdayName {
+  const today = getClevelandCurrentDayOfWeek(now);
+  const idx = WEEKDAYS.findIndex(
+    (d) => d.toLowerCase() === today.toLowerCase()
+  );
+  return WEEKDAYS[(idx + 1) % 7] || "Tuesday";
+}
+
 export function matchesDayFilter(
   night: Pick<NightRecord, "dayOfWeek" | "formatType">,
-  selectedDay?: string | null
+  selectedDay?: string | null,
+  referenceDate: Date = new Date()
 ): boolean {
   if (!selectedDay || selectedDay === "ALL" || selectedDay.trim() === "") {
     return true;
@@ -265,29 +303,28 @@ export function matchesDayFilter(
     return false;
   }
   const rawTarget = selectedDay.toLowerCase().trim();
-  const dayLower = day.toLowerCase();
+  const dayLower = day.toLowerCase().trim();
 
   if (rawTarget === "weekend" || rawTarget === "this weekend") {
     return (
-      dayLower.includes("friday") ||
-      dayLower.includes("saturday") ||
-      dayLower.includes("sunday") ||
+      dayLower.startsWith("friday") ||
+      dayLower.startsWith("saturday") ||
+      dayLower.startsWith("sunday") ||
       dayLower === "thursday-sunday"
     );
   }
 
   const target =
     rawTarget === "tonight"
-      ? "friday"
+      ? getClevelandCurrentDayOfWeek(referenceDate).toLowerCase()
       : rawTarget === "tomorrow"
-      ? "saturday"
+      ? getClevelandTomorrowDayOfWeek(referenceDate).toLowerCase()
       : rawTarget;
 
-  if (dayLower.includes(target)) return true;
   if (dayLower === "thursday-sunday") {
     return ["thursday", "friday", "saturday", "sunday"].includes(target);
   }
-  return false;
+  return dayLower.startsWith(target);
 }
 
 export function distanceMiles(

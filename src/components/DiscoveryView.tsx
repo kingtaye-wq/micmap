@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   NightRecord,
   distanceMiles,
+  getClevelandCurrentDayOfWeek,
+  getClevelandTomorrowDayOfWeek,
   matchesDayFilter,
   matchesGenreFilter,
 } from "@/lib/types";
@@ -124,7 +126,32 @@ export function DiscoveryView({
   defaultDay = "ALL",
   pageTitle = "Find your crowd tonight",
 }: DiscoveryViewProps) {
-  const [selectedDay, setSelectedDay] = useState<string>(defaultDay);
+  const [tonightDay, setTonightDay] = useState<string>(() =>
+    getClevelandCurrentDayOfWeek()
+  );
+  const [tomorrowDay, setTomorrowDay] = useState<string>(() =>
+    getClevelandTomorrowDayOfWeek()
+  );
+  const [selectedDay, setSelectedDay] = useState<string>(() =>
+    defaultDay.toLowerCase() === "tonight"
+      ? getClevelandCurrentDayOfWeek()
+      : defaultDay.toLowerCase() === "tomorrow"
+      ? getClevelandTomorrowDayOfWeek()
+      : defaultDay
+  );
+
+  // Re-evaluate live America/New_York weekday on client mount so Tonight view is never stale
+  useEffect(() => {
+    const liveToday = getClevelandCurrentDayOfWeek(new Date());
+    const liveTomorrow = getClevelandTomorrowDayOfWeek(new Date());
+    setTonightDay(liveToday);
+    setTomorrowDay(liveTomorrow);
+    if (defaultDay.toLowerCase() === "tonight") {
+      setSelectedDay(liveToday);
+    } else if (defaultDay.toLowerCase() === "tomorrow") {
+      setSelectedDay(liveTomorrow);
+    }
+  }, [defaultDay]);
   const [selectedType, setSelectedType] = useState<
     "ALL" | "karaoke" | "open_mic"
   >("ALL");
@@ -416,27 +443,29 @@ export function DiscoveryView({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedDay("Friday")}
+                  onClick={() => setSelectedDay(tonightDay)}
                   className={`rounded-lg px-2 py-1 text-[11px] font-bold transition sm:px-2.5 ${
-                    selectedDay === "Friday" || selectedDay === "Tonight"
+                    selectedDay.toLowerCase() === tonightDay.toLowerCase() ||
+                    selectedDay.toLowerCase() === "tonight"
                       ? "bg-[#FF2E93] text-white shadow-sm"
                       : "border border-white/10 bg-[#151525] text-[#A0A3BD] hover:text-white"
                   }`}
-                  data-testid="day-chip-Friday"
+                  data-testid="day-chip-Tonight"
                 >
-                  Tonight
+                  Tonight ({tonightDay.slice(0, 3)})
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedDay("Saturday")}
+                  onClick={() => setSelectedDay(tomorrowDay)}
                   className={`rounded-lg px-2 py-1 text-[11px] font-bold transition sm:px-2.5 ${
-                    selectedDay === "Saturday"
+                    selectedDay.toLowerCase() === tomorrowDay.toLowerCase() ||
+                    selectedDay.toLowerCase() === "tomorrow"
                       ? "bg-[#FF2E93] text-white shadow-sm"
                       : "border border-white/10 bg-[#151525] text-[#A0A3BD] hover:text-white"
                   }`}
-                  data-testid="day-chip-Saturday"
+                  data-testid="day-chip-Tomorrow"
                 >
-                  Tomorrow
+                  Tomorrow ({tomorrowDay.slice(0, 3)})
                 </button>
                 <button
                   type="button"
@@ -452,12 +481,9 @@ export function DiscoveryView({
                 </button>
                 <select
                   value={
-                    [
-                      "ALL",
-                      "Friday",
-                      "Saturday",
-                      "Weekend",
-                    ].includes(selectedDay)
+                    ["ALL", "Weekend", "Tonight", "Tomorrow"].includes(
+                      selectedDay
+                    )
                       ? ""
                       : selectedDay
                   }
@@ -1014,8 +1040,19 @@ export function DiscoveryView({
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h1 className="font-display text-base font-bold text-[#F8F9FA] sm:text-lg">
-                  Nights in View • {DEFAULT_METRO}
+                <h1 className="font-display flex flex-wrap items-center gap-2 text-base font-bold text-[#F8F9FA] sm:text-lg">
+                  <span>Nights in View • {DEFAULT_METRO}</span>
+                  <span
+                    className="rounded-full border border-[#FF2E93]/40 bg-[#FF2E93]/15 px-2.5 py-0.5 text-[11px] font-bold text-[#FF2E93]"
+                    data-testid="active-day-filter-label"
+                  >
+                    {selectedDay === "ALL"
+                      ? "All Nights"
+                      : selectedDay.toLowerCase() === tonightDay.toLowerCase() ||
+                        selectedDay.toLowerCase() === "tonight"
+                      ? `Tonight (${tonightDay})`
+                      : selectedDay}
+                  </span>
                 </h1>
                 <p
                   className="text-xs font-semibold text-[#00F0FF]"
@@ -1105,6 +1142,7 @@ export function DiscoveryView({
                     }`}
                     data-testid="verified-night-card"
                     data-night-id={night.id}
+                    data-day-of-week={night.dayOfWeek}
                     data-confidence={night.confidence}
                     data-primary-genre={night.primaryGenre}
                     data-has-coords={isLocationPending ? "false" : "true"}
