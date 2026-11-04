@@ -1,12 +1,13 @@
 import fs from "fs";
 import path from "path";
 import { loadClevelandSeedFromCsv } from "../src/lib/csv-parser";
-import { resetStoreLive } from "../src/lib/store";
+import { backfillProvenanceFromCsv, resetStoreLive } from "../src/lib/store";
 import { APP_NAME, APP_DOMAIN, DEFAULT_METRO } from "../src/config/brand";
 
 async function main() {
   const { rawRows, nights, venues, hosts } = loadClevelandSeedFromCsv();
   await resetStoreLive();
+  const backfillRes = await backfillProvenanceFromCsv();
 
   const verifiedNights = nights.filter((n) => n.confidence === "verified");
   const needsVerificationNights = nights.filter(
@@ -14,6 +15,7 @@ async function main() {
   );
   const karaokeNights = nights.filter((n) => n.nightType === "karaoke");
   const openMicNights = nights.filter((n) => n.nightType === "open_mic");
+  const liveBandNights = nights.filter((n) => n.nightType === "live_band");
   const missingDayRows = nights.filter((n) => n.dayOfWeek === "UNKNOWN");
   const missingStartTimeRows = nights.filter((n) => n.startTime === "UNKNOWN");
   const sourcedPrimaryGenreRows = nights.filter(
@@ -53,12 +55,14 @@ async function main() {
     appDomain: APP_DOMAIN,
     metro: DEFAULT_METRO,
     sourceFile: "data/cleveland-venues-master.csv",
+    provenanceSourceFile: "research/source-provenance.csv",
     counts: {
       totalCsvRows: rawRows.length,
       verifiedPublicNights: verifiedNights.length,
       needsVerificationAdminQueueRows: needsVerificationNights.length,
       karaokeRows: karaokeNights.length,
       openMicRows: openMicNights.length,
+      liveBandRows: liveBandNights.length,
       canonicalUniqueVenues: venues.length,
       canonicalUniqueHostsKjs: hosts.length,
       rowsWithAddressGeocoded: nights.length - geocodeFailures.length,
@@ -67,6 +71,8 @@ async function main() {
       rowsMissingStartTimePreserved: missingStartTimeRows.length,
       rowsWithSourcedPrimaryGenre: sourcedPrimaryGenreRows.length,
       rowsWithUnknownNotAFit: unknownNotAFitRows.length,
+      provenanceRecordsCount: backfillRes.provenanceRecordsCount,
+      rowsBackfilledWithProvenance: backfillRes.rowsBackfilled,
     },
     geocodeFailures,
     spotChecksFirst10: spotChecks,

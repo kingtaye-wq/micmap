@@ -4,11 +4,13 @@ import {
   getPublicVerifiedNights,
   verifyAndPublishNight,
   setNightDaysAgoConfirmed,
+  setNightPosterAsSourceStatus,
   resetStoreLive,
   syncStoreFromSupabase,
   persistStoreToSupabase,
   upsertNightsToSupabase,
 } from "@/lib/store";
+import { PosterAsSourceStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,11 @@ export async function GET() {
   const expired90d = store.nights.filter(
     (n) => n.freshnessStatus === "expired_90d"
   );
+  const askThePosterCount = store.nights.filter(
+    (n) =>
+      n.posterAsSourceStatus === "ask_the_poster" ||
+      n.posterAsSourceStatus === "draft_outreach_ready"
+  ).length;
 
   return NextResponse.json({
     counts: {
@@ -31,6 +38,7 @@ export async function GET() {
       needsVerificationCount: verificationQueue.length,
       stale45to89Count: staleWarning.length,
       expired90dCount: expired90d.length,
+      askThePosterCount,
     },
     verificationQueue,
     staleWarning,
@@ -60,6 +68,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       promotedNight: promoted,
+      publicVerifiedCount: getPublicVerifiedNights().length,
+      needsVerificationCount: getAdminVerificationQueue().length,
+    });
+  }
+
+  if (action === "set_poster_as_source") {
+    const status = (body.status || "ask_the_poster") as PosterAsSourceStatus;
+    const outreachDraft =
+      typeof body.outreachDraft === "string" ? body.outreachDraft : undefined;
+    const updated = setNightPosterAsSourceStatus({
+      nightId,
+      status,
+      outreachDraft,
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "Night not found" }, { status: 404 });
+    }
+    await persistStoreToSupabase(store);
+    await upsertNightsToSupabase([updated]);
+    return NextResponse.json({
+      ok: true,
+      updatedNight: updated,
       publicVerifiedCount: getPublicVerifiedNights().length,
       needsVerificationCount: getAdminVerificationQueue().length,
     });

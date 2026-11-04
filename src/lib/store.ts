@@ -2,9 +2,12 @@ import {
   NightRecord,
   VenueGroup,
   HostProfile,
+  PosterAsSourceStatus,
   loadClevelandSeedFromCsv,
   computeFreshness,
   parseIntakeCsvRows,
+  parseProvenanceCsvText,
+  loadSourceProvenanceMap,
 } from "./csv-parser";
 import {
   calculateTipBreakdown,
@@ -704,6 +707,15 @@ export async function upsertNightsToSupabase(
       primary_genre: n.primaryGenre,
       last_confirmed_text: n.lastConfirmedText,
       last_verified_at: n.lastVerifiedAt,
+      source_url: n.sourceUrl || null,
+      source_platform: n.sourcePlatform || null,
+      source_context: n.sourceContext || null,
+      poster_name: n.posterName || null,
+      poster_profile_url: n.posterProfileUrl || null,
+      source_contact_info: n.sourceContactInfo || null,
+      captured_date: n.capturedDate || null,
+      poster_as_source_status: n.posterAsSourceStatus || "none",
+      poster_outreach_draft: n.posterOutreachDraft || null,
       payload: n,
       updated_at: new Date().toISOString(),
     }));
@@ -806,17 +818,33 @@ export async function importIntakeCsvToQueue(params: {
   csvContent: string;
   source: string;
   intakeDate: string;
+  sourcePlatform?: string;
+  sourceContext?: string;
+  posterName?: string;
+  posterProfileUrl?: string;
+  sourceContactInfo?: string;
+  capturedDate?: string;
+  posterAsSourceStatus?: PosterAsSourceStatus;
+  posterOutreachDraft?: string;
 }): Promise<{ importedNights: NightRecord[]; batch: IntakeBatchRecord }> {
   const store = await syncStoreFromSupabase();
   const maxRow = store.nights.reduce(
     (max, n) => Math.max(max, n.csvRowNumber || 0),
-    140
+    143
   );
   const importedNights = parseIntakeCsvRows({
     csvContent: params.csvContent,
     startingRowNumber: maxRow + 1,
     source: params.source,
     intakeDate: params.intakeDate,
+    sourcePlatform: params.sourcePlatform,
+    sourceContext: params.sourceContext,
+    posterName: params.posterName,
+    posterProfileUrl: params.posterProfileUrl,
+    sourceContactInfo: params.sourceContactInfo,
+    capturedDate: params.capturedDate,
+    posterAsSourceStatus: params.posterAsSourceStatus,
+    posterOutreachDraft: params.posterOutreachDraft,
   });
 
   if (importedNights.length > 0) {
@@ -866,17 +894,152 @@ export async function importIntakeCsvToQueue(params: {
 }
 
 /**
+ * OS-INTERNAL ONLY Guardrail (Amendment 4):
+ * An individual poster's profile link (posterProfileUrl) and poster outreach fields
+ * NEVER render on a public page or leak through public verified night queries.
+ */
+export function stripOsInternalProvenanceForPublic(
+  night: NightRecord
+): NightRecord {
+  const copy: NightRecord = { ...night };
+  delete copy.posterProfileUrl;
+  delete copy.posterName;
+  delete copy.posterOutreachDraft;
+  delete copy.posterAsSourceStatus;
+  return copy;
+}
+
+/**
  * Returns ONLY verified public nights that have not exceeded the 90-day freshness window.
- * Per mvp-build-packet.md §3 & §8:
+ * Per mvp-build-packet.md §3 & §8 + Amendment 4:
  * - Only rows with confidence === "verified" publish on public discovery.
  * - Rows >= 90 days since lastVerifiedAt leave the public map (retained in admin).
+ * - OS-internal poster profile links are stripped before returning to any public page/endpoint.
  */
 export function getPublicVerifiedNights(): NightRecord[] {
   const store = getStore();
-  return store.nights.filter(
-    (n) =>
-      n.confidence === "verified" && n.freshnessStatus !== "expired_90d"
-  );
+  return store.nights
+    .filter(
+      (n) =>
+        n.confidence === "verified" && n.freshnessStatus !== "expired_90d"
+    )
+    .map(stripOsInternalProvenanceForPublic);
+}
+
+/**
+ * Backfill provenance fields on existing nights from research/source-provenance.csv (keyed by source_url)
+ */
+export async function backfillProvenanceFromCsv(
+  provenanceCsvContent?: string
+): Promise<{
+  updatedCount: number;
+  provenanceEntries: number;
+  rowsBackfilled: number;
+  provenanceRecordsCount: number;
+}> {
+  const store = await syncStoreFromSupabase();
+  const provMap =
+    provenanceCsvContent && provenanceCsvContent.trim()
+      ? parseProvenanceCsvText(provenanceCsvContent)
+      : loadSourceProvenanceMap();
+  const updatedNights: NightRecord[] = [];
+
+  for (const night of store.nights) {
+    let match = provMap.get(night.sourceUrl);
+    if (!match) {
+      for (const [provUrl, rec] of provMap.entries()) {
+        if (night.genreBasis && night.genreBasis.includes(provUrl)) {
+          match = rec;
+          break;
+        }
+      }
+    }
+    if (match) {
+      night.sourcePlatform = match.sourcePlatform || night.sourcePlatform;
+      night.sourceContext = match.sourceContext || night.sourceContext;
+      night.posterName = match.posterName || night.posterName;
+      night.posterProfileUrl = match.posterProfileUrl || night.posterProfileUrl;
+      night.sourceContactInfo =
+        match.sourceContactInfo || night.sourceContactInfo;
+      night.capturedDate = match.capturedDate || night.capturedDate;
+      if (match.posterAsSourceStatus) {
+        night.posterAsSourceStatus = match.posterAsSourceStatus;
+      }
+      if (match.posterOutreachDraft) {
+        night.posterOutreachDraft = match.posterOutreachDraft;
+      }
+      updatedNights.push(night);
+    }
+  }
+
+  await persistStoreToSupabase(store);
+  if (updatedNights.length > 0) {
+    await upsertNightsToSupabase(updatedNights);
+  }
+
+  // Upsert into public.source_provenance table in Supabase
+  try {
+    const provRows = Array.from(provMap.values()).map((p) => ({
+      source_url: p.sourceUrl,
+      source_platform: p.sourcePlatform,
+      source_context: p.sourceContext,
+      poster_name: p.posterName || null,
+      poster_profile_url: p.posterProfileUrl || null,
+      source_contact_info: p.sourceContactInfo || null,
+      captured_date: p.capturedDate || null,
+      poster_as_source_status: p.posterAsSourceStatus || "none",
+      poster_outreach_draft: p.posterOutreachDraft || null,
+      updated_at: new Date().toISOString(),
+    }));
+    if (provRows.length > 0) {
+      await fetch(`${SUPABASE_STAGING_URL}/rest/v1/source_provenance`, {
+        method: "POST",
+        headers: getSupabaseHeaders(
+          "resolution=merge-duplicates,return=minimal"
+        ),
+        body: JSON.stringify(provRows),
+        cache: "no-store",
+      });
+    }
+  } catch {
+    // ignore
+  }
+
+  return {
+    updatedCount: updatedNights.length,
+    provenanceEntries: provMap.size,
+    rowsBackfilled: updatedNights.length,
+    provenanceRecordsCount: provMap.size,
+  };
+}
+
+/**
+ * Poster-as-Source Rule (Amendment 4):
+ * When a night can't be verified at the venue, the original poster is the verification source of record —
+ * the lead stays held in needs_verification (never published on a guess) and is flagged "ask_the_poster" in the OS.
+ * Any message to a poster is drafts-first outreach, same as KJ/venue outreach.
+ */
+export function setNightPosterAsSourceStatus(params: {
+  nightId: string;
+  status: PosterAsSourceStatus;
+  outreachDraft?: string;
+}): NightRecord | null {
+  const store = getStore();
+  const night = store.nights.find((n) => n.id === params.nightId);
+  if (!night) return null;
+
+  night.posterAsSourceStatus = params.status;
+  if (typeof params.outreachDraft === "string") {
+    night.posterOutreachDraft = params.outreachDraft;
+  }
+  // When flagged ask_the_poster or draft_outreach_ready, ensure the lead stays held (never published on a guess)
+  if (
+    params.status === "ask_the_poster" ||
+    params.status === "draft_outreach_ready"
+  ) {
+    night.confidence = "needs_verification";
+  }
+  return night;
 }
 
 /**

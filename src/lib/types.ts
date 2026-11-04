@@ -3,6 +3,27 @@ import {
   FRESHNESS_VERIFY_DAYS,
 } from "@/config/brand";
 
+export type PosterAsSourceStatus =
+  | "none"
+  | "ask_the_poster"
+  | "draft_outreach_ready"
+  | "verified_by_poster";
+
+export interface SourceProvenanceRecord {
+  sourceUrl: string;
+  sourcePlatform: string;
+  sourceContext: string;
+  posterName: string;
+  /** OS-INTERNAL ONLY: an individual's profile link never renders on a public page */
+  posterProfileUrl: string;
+  /** Contact info ONLY when the source itself states it (phone/email on flyer; public handle) */
+  sourceContactInfo: string;
+  capturedDate: string;
+  posterAsSourceStatus: PosterAsSourceStatus;
+  /** Drafts-first outreach text (never sent without Alex's approval) */
+  posterOutreachDraft?: string;
+}
+
 export interface RawCsvVenueNightRow {
   csvRowNumber: number;
   venue_name: string;
@@ -10,7 +31,7 @@ export interface RawCsvVenueNightRow {
   address: string;
   day_of_week: string;
   start_time: string;
-  type: "karaoke" | "open mic";
+  type: "karaoke" | "open mic" | "live_band";
   host_or_KJ: string;
   primary_genre: string;
   also_welcome: string;
@@ -49,13 +70,14 @@ export interface NightRecord {
   startTime: string;
   rawStartTime: string;
   endTime: string;
-  nightType: "karaoke" | "open_mic";
-  nightTypeLabel: "Karaoke" | "Open Mic";
+  nightType: "karaoke" | "open_mic" | "live_band";
+  nightTypeLabel: "Karaoke" | "Open Mic" | "Live Band";
   formatType:
     | "Open Bar Karaoke"
     | "Private Rooms"
     | "Live Band Karaoke"
-    | "Open Mic Stage";
+    | "Open Mic Stage"
+    | "Live Band Residency";
   hostOrKj: string;
   hostSlug: string | null;
   tenantId: string | null;
@@ -78,6 +100,17 @@ export interface NightRecord {
   venueWebsite: string;
   facebook: string;
   instagram: string;
+  /** Amendment 4 — OS Source Provenance & Poster-as-Source Rule */
+  sourcePlatform?: string;
+  sourceContext?: string;
+  posterName?: string;
+  /** OS-INTERNAL ONLY: never rendered on a public page */
+  posterProfileUrl?: string;
+  /** Contact info ONLY when the source itself states it */
+  sourceContactInfo?: string;
+  capturedDate?: string;
+  posterAsSourceStatus?: PosterAsSourceStatus;
+  posterOutreachDraft?: string;
 }
 
 export interface VenueGroup {
@@ -227,6 +260,8 @@ export function matchesGenreFilter(
     "poetry/spoken word": ["poetry", "poets", "spoken word"],
     "acoustic/folk": ["acoustic", "folk", "singer-songwriter", "bluegrass"],
     blues: ["blues"],
+    "brass band": ["brass", "brass band"],
+    gospel: ["gospel"],
     "all genres": ["all genres"],
     originals: ["original", "originals", "singer-songwriter"],
     covers: ["cover", "covers"],

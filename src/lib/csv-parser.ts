@@ -5,14 +5,21 @@ import {
   FRESHNESS_VERIFY_DAYS,
 } from "@/config/brand";
 
+import {
+  PosterAsSourceStatus,
+  SourceProvenanceRecord,
+} from "./types";
+
+export type { PosterAsSourceStatus, SourceProvenanceRecord };
+
 export interface RawCsvVenueNightRow {
-  csvRowNumber: number; // 1-indexed data row (1..131), line in CSV is csvRowNumber + 1
+  csvRowNumber: number; // 1-indexed data row (1..143), line in CSV is csvRowNumber + 1
   venue_name: string;
   neighborhood_city: string;
   address: string;
   day_of_week: string;
   start_time: string;
-  type: "karaoke" | "open mic";
+  type: "karaoke" | "open mic" | "live_band";
   host_or_KJ: string;
   primary_genre: string;
   also_welcome: string;
@@ -51,9 +58,14 @@ export interface NightRecord {
   startTime: string; // "UNKNOWN" when blank in CSV
   rawStartTime: string;
   endTime: string; // "UNKNOWN" when not specified
-  nightType: "karaoke" | "open_mic";
-  nightTypeLabel: "Karaoke" | "Open Mic";
-  formatType: "Open Bar Karaoke" | "Private Rooms" | "Live Band Karaoke" | "Open Mic Stage";
+  nightType: "karaoke" | "open_mic" | "live_band";
+  nightTypeLabel: "Karaoke" | "Open Mic" | "Live Band";
+  formatType:
+    | "Open Bar Karaoke"
+    | "Private Rooms"
+    | "Live Band Karaoke"
+    | "Open Mic Stage"
+    | "Live Band Residency";
   hostOrKj: string; // "UNKNOWN" when blank in CSV
   hostSlug: string | null;
   tenantId: string | null;
@@ -76,6 +88,17 @@ export interface NightRecord {
   venueWebsite: string;
   facebook: string;
   instagram: string;
+  /** Amendment 4 — OS Source Provenance & Poster-as-Source Rule */
+  sourcePlatform?: string;
+  sourceContext?: string;
+  posterName?: string;
+  /** OS-INTERNAL ONLY: never rendered on a public page */
+  posterProfileUrl?: string;
+  /** Contact info ONLY when the source itself states it */
+  sourceContactInfo?: string;
+  capturedDate?: string;
+  posterAsSourceStatus?: PosterAsSourceStatus;
+  posterOutreachDraft?: string;
 }
 
 export interface VenueGroup {
@@ -217,6 +240,7 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "14751 Pearl Rd, Strongsville, OH 44136": { lat: 41.3118, lng: -81.8359 },
   "3333 Manchester Rd, Suite 3, Akron, OH 44319": { lat: 40.9968, lng: -81.5542 },
   "4284 Beverly Hills Dr, Brunswick, OH 44212": { lat: 41.2392, lng: -81.8245 },
+  "30308 Euclid Ave, Wickliffe, OH 44092": { lat: 41.6132, lng: -81.4648 },
 };
 
 export function slugify(input: string): string {
@@ -443,6 +467,157 @@ export function computeFreshness(
   return { daysSinceConfirmed, freshnessStatus: "verified_fresh" };
 }
 
+export function parseProvenanceCsvText(
+  csvContent: string
+): Map<string, SourceProvenanceRecord> {
+  const map = new Map<string, SourceProvenanceRecord>();
+  if (!csvContent || !csvContent.trim()) return map;
+  const rows = parseRawCsvText(csvContent.trim());
+  if (rows.length === 0) return map;
+
+  const firstCell = (rows[0][0] || "").trim().toLowerCase();
+  const dataRows =
+    firstCell === "source_url" || firstCell === "sourceurl"
+      ? rows.slice(1)
+      : rows;
+
+  for (const cols of dataRows) {
+    const sourceUrl = (cols[0] || "").trim();
+    if (!sourceUrl) continue;
+    const rawStatus = (cols[7] || "none").trim() as PosterAsSourceStatus;
+    const posterAsSourceStatus: PosterAsSourceStatus = [
+      "none",
+      "ask_the_poster",
+      "draft_outreach_ready",
+      "verified_by_poster",
+    ].includes(rawStatus)
+      ? rawStatus
+      : "none";
+
+    map.set(sourceUrl, {
+      sourceUrl,
+      sourcePlatform: (cols[1] || "").trim() || "Web / Directory",
+      sourceContext: (cols[2] || "").trim() || "Ingested Source",
+      posterName: (cols[3] || "").trim(),
+      posterProfileUrl: (cols[4] || "").trim(),
+      sourceContactInfo: (cols[5] || "").trim(),
+      capturedDate: (cols[6] || "").trim() || "2026-10-31",
+      posterAsSourceStatus,
+      posterOutreachDraft: (cols[8] || "").trim() || undefined,
+    });
+  }
+  return map;
+}
+
+export function loadSourceProvenanceMap(): Map<string, SourceProvenanceRecord> {
+  const candidates = [
+    path.join(process.cwd(), "research", "source-provenance.csv"),
+    path.join(process.cwd(), "data", "source-provenance.csv"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const text = fs.readFileSync(candidate, "utf8");
+        return parseProvenanceCsvText(text);
+      }
+    } catch {
+      // ignore and fall through
+    }
+  }
+  return new Map();
+}
+
+export function deriveProvenanceForRow(
+  rawRow: RawCsvVenueNightRow,
+  provenanceMap: Map<string, SourceProvenanceRecord>
+): SourceProvenanceRecord {
+  const explicit = provenanceMap.get(rawRow.source_url);
+  if (explicit) {
+    return explicit;
+  }
+
+  const url = (rawRow.source_url || "").toLowerCase();
+  const basis = rawRow.genre_basis || "";
+  let sourcePlatform = "Web / Directory";
+  let sourceContext = "Directory / Venue Listing";
+  let posterName = "";
+  let posterProfileUrl = "";
+  let sourceContactInfo = "";
+
+  if (url.includes("facebook.com/groups/")) {
+    sourcePlatform = "Facebook";
+    if (url.includes("karaoke.for.akron.cleveland.ne.ohio")) {
+      sourceContext = "FB Group: Karaoke for Akron, Cleveland & NE Ohio";
+    } else if (url.includes("karaokeneohio")) {
+      sourceContext = "FB Group: Karaoke NE Ohio";
+    } else if (url.includes("karaokecompcircuitcle")) {
+      sourceContext = "FB Group: Karaoke Comp Circuit CLE";
+    } else {
+      sourceContext = "Facebook Karaoke / Nightlife Group";
+    }
+    posterName = rawRow.host_or_KJ || "Facebook Group Poster";
+    posterProfileUrl = rawRow.source_url;
+  } else if (url.includes("facebook.com/reel/")) {
+    sourcePlatform = "Facebook";
+    sourceContext = "Facebook Saved Reels";
+    posterName = rawRow.host_or_KJ || "Facebook Reel Poster";
+    posterProfileUrl = rawRow.source_url;
+  } else if (url.includes("facebook.com")) {
+    sourcePlatform = "Facebook";
+    sourceContext = "Venue Official Facebook Page";
+    posterName = rawRow.venue_name;
+    posterProfileUrl = rawRow.facebook || rawRow.source_url;
+  } else if (url.includes("instagram.com/reel/")) {
+    sourcePlatform = "Instagram";
+    sourceContext = "Instagram Saved Collection";
+    const handleMatch = basis.match(/@[a-zA-Z0-9._]+/);
+    posterName = handleMatch ? handleMatch[0] : rawRow.host_or_KJ || "Instagram Reel Poster";
+    posterProfileUrl = handleMatch
+      ? `https://www.instagram.com/${handleMatch[0].slice(1)}/`
+      : rawRow.source_url;
+    if (handleMatch) {
+      sourceContactInfo = handleMatch[0];
+    }
+  } else if (url.includes("instagram.com")) {
+    sourcePlatform = "Instagram";
+    sourceContext = "Venue / Host Instagram";
+    posterName = rawRow.host_or_KJ || rawRow.venue_name;
+    posterProfileUrl = rawRow.instagram || rawRow.source_url;
+  } else if (url.includes("karaokelist.app")) {
+    sourcePlatform = "Web / Directory";
+    sourceContext = "KaraokeList Cleveland Guide";
+  } else if (url.includes("clevescene.com")) {
+    sourcePlatform = "Web / Editorial";
+    sourceContext = "Cleveland Scene Guide";
+  } else if (rawRow.venue_website && rawRow.source_url === rawRow.venue_website) {
+    sourcePlatform = "Venue Website";
+    sourceContext = "Official Venue Calendar / Page";
+    posterName = rawRow.venue_name;
+  }
+
+  // Contact info ONLY when the source itself states it
+  if (!sourceContactInfo) {
+    const handleInBasis = basis.match(/@[a-zA-Z0-9._]+/);
+    if (handleInBasis) {
+      sourceContactInfo = handleInBasis[0];
+    }
+  }
+
+  const dateMatch = (rawRow.last_confirmed || "").match(/\d{4}-\d{2}-\d{2}/);
+  const capturedDate = dateMatch ? dateMatch[0] : "2026-10-31";
+
+  return {
+    sourceUrl: rawRow.source_url,
+    sourcePlatform,
+    sourceContext,
+    posterName,
+    posterProfileUrl,
+    sourceContactInfo,
+    capturedDate,
+    posterAsSourceStatus: "none",
+  };
+}
+
 export function loadClevelandSeedFromCsv(csvFilePath?: string): {
   rawRows: RawCsvVenueNightRow[];
   nights: NightRecord[];
@@ -454,6 +629,7 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
     path.join(process.cwd(), "data", "cleveland-venues-master.csv");
   const csvContent = fs.readFileSync(resolvedPath, "utf8");
   const parsedRows = parseRawCsvText(csvContent);
+  const provenanceMap = loadSourceProvenanceMap();
 
   // Skip header row (index 0)
   const dataRows = parsedRows.slice(1);
@@ -467,6 +643,14 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
 
   dataRows.forEach((cols, index) => {
     const csvRowNumber = index + 1;
+    const rawTypeCell = (cols[5] || "karaoke").trim().toLowerCase();
+    const parsedType: "karaoke" | "open mic" | "live_band" =
+      rawTypeCell === "open mic" || rawTypeCell === "open_mic"
+        ? "open mic"
+        : rawTypeCell === "live_band" || rawTypeCell === "live band"
+        ? "live_band"
+        : "karaoke";
+
     const rawRow: RawCsvVenueNightRow = {
       csvRowNumber,
       venue_name: (cols[0] || "").trim(),
@@ -474,9 +658,7 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
       address: (cols[2] || "").trim(),
       day_of_week: (cols[3] || "").trim(),
       start_time: (cols[4] || "").trim(),
-      type: ((cols[5] || "karaoke").trim().toLowerCase() === "open mic"
-        ? "open mic"
-        : "karaoke") as "karaoke" | "open mic",
+      type: parsedType,
       host_or_KJ: (cols[6] || "").trim(),
       primary_genre: (cols[7] || "").trim(),
       also_welcome: (cols[8] || "").trim(),
@@ -548,8 +730,13 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
       | "Open Bar Karaoke"
       | "Private Rooms"
       | "Live Band Karaoke"
-      | "Open Mic Stage" =
-      rawRow.type === "open mic" ? "Open Mic Stage" : "Open Bar Karaoke";
+      | "Open Mic Stage"
+      | "Live Band Residency" =
+      rawRow.type === "open mic"
+        ? "Open Mic Stage"
+        : rawRow.type === "live_band"
+        ? "Live Band Residency"
+        : "Open Bar Karaoke";
     if (
       rawRow.venue_name.toLowerCase().includes("ktv") ||
       rawRow.signup_method.toLowerCase().includes("private room") ||
@@ -580,6 +767,21 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
     const { daysSinceConfirmed, freshnessStatus } =
       computeFreshness(lastVerifiedAt);
 
+    const provenance = deriveProvenanceForRow(rawRow, provenanceMap);
+
+    const nightType: "karaoke" | "open_mic" | "live_band" =
+      rawRow.type === "open mic"
+        ? "open_mic"
+        : rawRow.type === "live_band"
+        ? "live_band"
+        : "karaoke";
+    const nightTypeLabel: "Karaoke" | "Open Mic" | "Live Band" =
+      rawRow.type === "open mic"
+        ? "Open Mic"
+        : rawRow.type === "live_band"
+        ? "Live Band"
+        : "Karaoke";
+
     const nightRecord: NightRecord = {
       id: `night-${csvRowNumber}`,
       csvRowNumber,
@@ -599,8 +801,8 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
       startTime,
       rawStartTime: rawRow.start_time,
       endTime: "UNKNOWN",
-      nightType: rawRow.type === "open mic" ? "open_mic" : "karaoke",
-      nightTypeLabel: rawRow.type === "open mic" ? "Open Mic" : "Karaoke",
+      nightType,
+      nightTypeLabel,
       formatType,
       hostOrKj,
       hostSlug: hostInfo?.slug || null,
@@ -631,6 +833,14 @@ export function loadClevelandSeedFromCsv(csvFilePath?: string): {
       venueWebsite: rawRow.venue_website,
       facebook: rawRow.facebook,
       instagram: rawRow.instagram,
+      sourcePlatform: provenance.sourcePlatform,
+      sourceContext: provenance.sourceContext,
+      posterName: provenance.posterName,
+      posterProfileUrl: provenance.posterProfileUrl,
+      sourceContactInfo: provenance.sourceContactInfo,
+      capturedDate: provenance.capturedDate,
+      posterAsSourceStatus: provenance.posterAsSourceStatus,
+      posterOutreachDraft: provenance.posterOutreachDraft,
     };
 
     nights.push(nightRecord);
@@ -771,6 +981,8 @@ export function matchesGenreFilter(
     "poetry/spoken word": ["poetry", "poets", "spoken word"],
     "acoustic/folk": ["acoustic", "folk", "singer-songwriter", "bluegrass"],
     blues: ["blues"],
+    "brass band": ["brass", "brass band"],
+    gospel: ["gospel"],
     "all genres": ["all genres"],
     originals: ["original", "originals", "singer-songwriter"],
     covers: ["cover", "covers"],
@@ -843,18 +1055,28 @@ export function matchesDayFilter(
 }
 
 /**
- * Parse update-intake CSV rows in cleveland-venues-master.csv format.
- * Per Amendment 2B: Every imported row lands strictly in confidence = "needs_verification"
- * on /admin/verification-queue (never straight to public), stamped with source + intake_date.
+ * Parse update-intake CSV rows in cleveland-venues-master.csv format (+ optional provenance fields).
+ * Per Amendment 2B & Amendment 4:
+ * - Every imported row lands strictly in confidence = "needs_verification" on /admin/verification-queue
+ *   (never straight to public), stamped with source + intake_date + full OS-internal source provenance.
  */
 export function parseIntakeCsvRows(params: {
   csvContent: string;
   startingRowNumber: number;
   source: string;
   intakeDate: string;
+  sourcePlatform?: string;
+  sourceContext?: string;
+  posterName?: string;
+  posterProfileUrl?: string;
+  sourceContactInfo?: string;
+  capturedDate?: string;
+  posterAsSourceStatus?: PosterAsSourceStatus;
+  posterOutreachDraft?: string;
 }): NightRecord[] {
   const parsedRows = parseRawCsvText(params.csvContent.trim());
   if (parsedRows.length === 0) return [];
+  const provenanceMap = loadSourceProvenanceMap();
 
   // Detect if row 0 is a header row
   const firstCell = (parsedRows[0][0] || "").trim().toLowerCase();
@@ -874,9 +1096,13 @@ export function parseIntakeCsvRows(params: {
     const address = (cols[2] || "").trim();
     const rawDay = (cols[3] || "").trim();
     const rawStart = (cols[4] || "").trim();
-    const rawType = ((cols[5] || "karaoke").trim().toLowerCase() === "open mic"
-      ? "open mic"
-      : "karaoke") as "karaoke" | "open mic";
+    const rawTypeCell = (cols[5] || "karaoke").trim().toLowerCase();
+    const rawType: "karaoke" | "open mic" | "live_band" =
+      rawTypeCell === "open mic" || rawTypeCell === "open_mic"
+        ? "open mic"
+        : rawTypeCell === "live_band" || rawTypeCell === "live band"
+        ? "live_band"
+        : "karaoke";
     const rawHost = (cols[6] || "").trim();
     const rawPrimaryGenre = (cols[7] || "").trim();
     const rawAlsoWelcome = (cols[8] || "").trim();
@@ -891,6 +1117,16 @@ export function parseIntakeCsvRows(params: {
     const rawWebsite = (cols[18] || "").trim();
     const rawFacebook = (cols[19] || "").trim();
     const rawInstagram = (cols[20] || "").trim();
+
+    // Optional per-row provenance columns (cols 21..28) or form-supplied provenance or provenance CSV lookup
+    const csvProvPlatform = (cols[21] || "").trim();
+    const csvProvContext = (cols[22] || "").trim();
+    const csvPosterName = (cols[23] || "").trim();
+    const csvPosterProfileUrl = (cols[24] || "").trim();
+    const csvSourceContactInfo = (cols[25] || "").trim();
+    const csvCapturedDate = (cols[26] || "").trim();
+    const csvPosterStatus = (cols[27] || "").trim() as PosterAsSourceStatus;
+    const csvPosterOutreachDraft = (cols[28] || "").trim();
 
     const canonicalVenueName = getCanonicalVenueName(venueName);
     const venueSlug = slugify(canonicalVenueName);
@@ -947,6 +1183,58 @@ export function parseIntakeCsvRows(params: {
     const { daysSinceConfirmed, freshnessStatus } =
       computeFreshness(lastVerifiedAt);
 
+    const derived = deriveProvenanceForRow(
+      {
+        csvRowNumber,
+        venue_name: venueName,
+        neighborhood_city: neighborhood,
+        address,
+        day_of_week: rawDay,
+        start_time: rawStart,
+        type: rawType,
+        host_or_KJ: rawHost,
+        primary_genre: rawPrimaryGenre,
+        also_welcome: rawAlsoWelcome,
+        not_a_fit: rawNotAFit,
+        genre_basis: rawGenreBasis,
+        signup_method: rawSignup,
+        cover: rawCover,
+        age: rawAge,
+        source_url: rawSourceUrl,
+        last_confirmed: rawLastConfirmed,
+        confidence: "needs_verification",
+        phone: rawPhone,
+        venue_website: rawWebsite,
+        facebook: rawFacebook,
+        instagram: rawInstagram,
+      },
+      provenanceMap
+    );
+
+    const nightType: "karaoke" | "open_mic" | "live_band" =
+      rawType === "open mic"
+        ? "open_mic"
+        : rawType === "live_band"
+        ? "live_band"
+        : "karaoke";
+    const nightTypeLabel: "Karaoke" | "Open Mic" | "Live Band" =
+      rawType === "open mic"
+        ? "Open Mic"
+        : rawType === "live_band"
+        ? "Live Band"
+        : "Karaoke";
+    const formatType:
+      | "Open Bar Karaoke"
+      | "Private Rooms"
+      | "Live Band Karaoke"
+      | "Open Mic Stage"
+      | "Live Band Residency" =
+      rawType === "open mic"
+        ? "Open Mic Stage"
+        : rawType === "live_band"
+        ? "Live Band Residency"
+        : "Open Bar Karaoke";
+
     createdNights.push({
       id: `night-${csvRowNumber}`,
       csvRowNumber,
@@ -966,9 +1254,9 @@ export function parseIntakeCsvRows(params: {
       startTime,
       rawStartTime: rawStart,
       endTime: "UNKNOWN",
-      nightType: rawType === "open mic" ? "open_mic" : "karaoke",
-      nightTypeLabel: rawType === "open mic" ? "Open Mic" : "Karaoke",
-      formatType: rawType === "open mic" ? "Open Mic Stage" : "Open Bar Karaoke",
+      nightType,
+      nightTypeLabel,
+      formatType,
       hostOrKj,
       hostSlug: hostInfo?.slug || null,
       tenantId: hostInfo?.tenantId || null,
@@ -995,6 +1283,36 @@ export function parseIntakeCsvRows(params: {
       venueWebsite: rawWebsite,
       facebook: rawFacebook,
       instagram: rawInstagram,
+      sourcePlatform:
+        csvProvPlatform || params.sourcePlatform || derived.sourcePlatform,
+      sourceContext:
+        csvProvContext ||
+        params.sourceContext ||
+        params.source ||
+        derived.sourceContext,
+      posterName: csvPosterName || params.posterName || derived.posterName,
+      posterProfileUrl:
+        csvPosterProfileUrl ||
+        params.posterProfileUrl ||
+        derived.posterProfileUrl,
+      sourceContactInfo:
+        csvSourceContactInfo ||
+        params.sourceContactInfo ||
+        derived.sourceContactInfo,
+      capturedDate:
+        csvCapturedDate ||
+        params.capturedDate ||
+        params.intakeDate ||
+        derived.capturedDate,
+      posterAsSourceStatus:
+        csvPosterStatus ||
+        params.posterAsSourceStatus ||
+        derived.posterAsSourceStatus ||
+        "none",
+      posterOutreachDraft:
+        csvPosterOutreachDraft ||
+        params.posterOutreachDraft ||
+        derived.posterOutreachDraft,
     });
   });
 

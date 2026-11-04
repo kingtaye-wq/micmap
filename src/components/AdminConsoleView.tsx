@@ -30,8 +30,8 @@ export function AdminConsoleView({
 }: AdminConsoleViewProps) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [counts, setCounts] = useState({
-    totalSeededRows: 140,
-    publicVerifiedCount: 83,
+    totalSeededRows: 143,
+    publicVerifiedCount: 86,
     needsVerificationCount: 57,
     stale45to89Count: 0,
     expired90dCount: 0,
@@ -90,10 +90,26 @@ export function AdminConsoleView({
   const [intakeSource, setIntakeSource] = useState(
     "Dre / Weekly Cleveland Venue Pass"
   );
-  const [intakeDate, setIntakeDate] = useState("2026-10-31");
-  const [intakeCsvText, setIntakeCsvText] = useState(
-    `venue_name,neighborhood_city,address,day_of_week,start_time,type,host_or_KJ,primary_genre,also_welcome,not_a_fit,genre_basis,signup_method,cover,age,source_url,last_confirmed,confidence,phone,venue_website,facebook,instagram\nThe Happy Dog Intake Test,Detroit Shoreway,"5801 Detroit Ave, Cleveland, OH",Wednesday,9:00 PM,karaoke,KJ Test Host,Rock,"Pop/Top 40, Throwbacks/Oldies",UNKNOWN,Update intake pass,Paper slip,Free,21+,https://happydogcleveland.com,2026-10-31,verified,216-651-9474,https://happydogcleveland.com,,`
+  const [intakeDate, setIntakeDate] = useState("2026-11-04");
+  const [intakeSourcePlatform, setIntakeSourcePlatform] = useState("Facebook");
+  const [intakeSourceContext, setIntakeSourceContext] = useState(
+    "Cleveland Karaoke & Open Mic Flyers Group"
   );
+  const [intakePosterName, setIntakePosterName] = useState("");
+  const [intakePosterProfileUrl, setIntakePosterProfileUrl] = useState("");
+  const [intakeSourceContactInfo, setIntakeSourceContactInfo] = useState("");
+  const [intakeCapturedDate, setIntakeCapturedDate] = useState("2026-11-04");
+  const [intakePosterAsSourceStatus, setIntakePosterAsSourceStatus] = useState<
+    "none" | "ask_the_poster" | "draft_outreach_ready" | "resolved"
+  >("none");
+  const [intakePosterOutreachDraft, setIntakePosterOutreachDraft] =
+    useState("");
+  const [intakeCsvText, setIntakeCsvText] = useState(
+    `venue_name,neighborhood_city,address,day_of_week,start_time,type,host_or_KJ,primary_genre,also_welcome,not_a_fit,genre_basis,signup_method,cover,age,source_url,last_confirmed,confidence,phone,venue_website,facebook,instagram\nThe Happy Dog Intake Test,Detroit Shoreway,"5801 Detroit Ave, Cleveland, OH",Wednesday,9:00 PM,karaoke,KJ Test Host,Rock,"Pop/Top 40, Throwbacks/Oldies",UNKNOWN,Update intake pass,Paper slip,Free,21+,https://happydogcleveland.com,2026-11-04,verified,216-651-9474,https://happydogcleveland.com,,`
+  );
+  const [draftsByNightId, setDraftsByNightId] = useState<
+    Record<string, string>
+  >({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   async function refreshAll() {
@@ -200,6 +216,14 @@ export function AdminConsoleView({
         csvContent: intakeCsvText,
         source: intakeSource,
         intakeDate,
+        sourcePlatform: intakeSourcePlatform,
+        sourceContext: intakeSourceContext,
+        posterName: intakePosterName,
+        posterProfileUrl: intakePosterProfileUrl,
+        sourceContactInfo: intakeSourceContactInfo,
+        capturedDate: intakeCapturedDate || intakeDate,
+        posterAsSourceStatus: intakePosterAsSourceStatus,
+        posterOutreachDraft: intakePosterOutreachDraft,
       }),
     });
     const data = await res.json();
@@ -211,6 +235,45 @@ export function AdminConsoleView({
       setActiveTab("verification");
     } else if (data.error) {
       setStatusMessage(`Import error: ${data.error}`);
+    }
+  }
+
+  async function handleSetPosterAsSource(
+    nightId: string,
+    status: "none" | "ask_the_poster" | "draft_outreach_ready" | "resolved",
+    outreachDraft?: string
+  ) {
+    const res = await fetch("/api/admin/verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "set_poster_as_source",
+        nightId,
+        status,
+        outreachDraft,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setStatusMessage(
+        `Poster-as-Source updated for ${data.updatedNight.venueName}: status = "${data.updatedNight.posterAsSourceStatus}" (lead remains held in needs_verification).`
+      );
+      await refreshAll();
+    }
+  }
+
+  async function handleProvenanceBackfill() {
+    const res = await fetch("/api/admin/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "backfill_provenance" }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setStatusMessage(
+        `Backfilled ${data.rowsBackfilled} row(s) across ${data.provenanceRecordsCount} provenance records from research/source-provenance.csv.`
+      );
+      await refreshAll();
     }
   }
 
@@ -380,7 +443,7 @@ export function AdminConsoleView({
         )}
       </div>
 
-      {/* Tab 1: Verification Queue (58 needs_verification rows) */}
+      {/* Tab 1: Verification Queue (57 needs_verification rows) */}
       {activeTab === "verification" && (
         <div
           className="mt-6 space-y-3"
@@ -389,11 +452,11 @@ export function AdminConsoleView({
           {verificationQueue.map((row) => (
             <div
               key={row.id}
-              className="flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-[#1E1E34] p-4 sm:flex-row sm:items-center"
+              className="flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-[#1E1E34] p-4 sm:flex-row sm:items-start"
               data-testid="admin-verification-row"
               data-night-id={row.id}
             >
-              <div>
+              <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono-code rounded bg-[#0B0B14] px-2 py-0.5 text-xs text-[#FFB800]">
                     CSV Row #{row.csvRowNumber} • {row.roomCode}
@@ -404,6 +467,15 @@ export function AdminConsoleView({
                   <span className="rounded-full border border-[#FFB800]/40 bg-[#FFB800]/10 px-2.5 py-0.5 text-xs font-bold text-[#FFB800]">
                     needs_verification (Hidden from Public)
                   </span>
+                  {(row.posterAsSourceStatus === "ask_the_poster" ||
+                    row.posterAsSourceStatus === "draft_outreach_ready") && (
+                    <span
+                      className="rounded-full border border-[#00F0FF]/50 bg-[#00F0FF]/15 px-2.5 py-0.5 text-xs font-bold text-[#00F0FF]"
+                      data-testid="ask-the-poster-badge"
+                    >
+                      Flagged: Ask the Poster (Lead Held — Never Published on a Guess)
+                    </span>
+                  )}
                 </div>
 
                 <h3 className="font-display mt-1.5 text-lg font-bold text-[#F8F9FA]">
@@ -431,6 +503,113 @@ export function AdminConsoleView({
                     {row.lastConfirmedText}
                   </span>
                 </p>
+
+                {/* Amendment 4: OS-Internal Source Provenance + Poster-as-Source */}
+                <div
+                  className="mt-3 rounded-xl border border-white/10 bg-[#0B0B14]/80 p-3 text-xs"
+                  data-testid="admin-row-provenance"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-bold uppercase tracking-wider text-[#00F0FF]">
+                      Source Provenance (OS-Internal Only • Never Public)
+                    </span>
+                    <span className="font-mono-code text-[11px] text-[#A0A3BD]">
+                      Captured: {row.capturedDate || "2026-10-31"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    <div>
+                      <span className="text-[#A0A3BD]">Platform &amp; Context: </span>
+                      <span className="font-semibold text-[#F8F9FA]">
+                        {row.sourcePlatform || "Direct Research"} •{" "}
+                        {row.sourceContext || "Cleveland Venue Master"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#A0A3BD]">Original Poster: </span>
+                      {row.posterName ? (
+                        <span className="font-semibold text-[#FFB800]">
+                          {row.posterName}{" "}
+                          {row.posterProfileUrl && (
+                            <a
+                              href={row.posterProfileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="ml-1 inline-flex items-center gap-1 underline text-[#FF2E93]"
+                              data-testid="admin-poster-profile-link"
+                            >
+                              <span>Profile (OS-Internal)</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[#A0A3BD]">Venue / Direct Listing</span>
+                      )}
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-[#A0A3BD]">
+                        Source-Stated Contact (Flyer/Handle Only):{" "}
+                      </span>
+                      <span className="font-mono-code text-[#00E676]">
+                        {row.sourceContactInfo || "None stated on source"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Poster-as-Source & Drafts-First Outreach */}
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSetPosterAsSource(
+                          row.id,
+                          "ask_the_poster",
+                          draftsByNightId[row.id] ??
+                            row.posterOutreachDraft ??
+                            `Hi ${row.posterName || "there"} — saw your post for ${row.venueName}. Can you confirm the current day, start time, and room address for Cleveland Mic Map? (DRAFT ONLY)`
+                        )
+                      }
+                      className="rounded-lg border border-[#00F0FF]/40 bg-[#00F0FF]/10 px-2.5 py-1 text-[11px] font-bold text-[#00F0FF] hover:bg-[#00F0FF]/20"
+                      data-testid="flag-ask-the-poster-btn"
+                    >
+                      Flag: Ask the Poster (Hold Lead)
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="Drafts-first poster outreach message (never auto-sent)..."
+                      value={
+                        draftsByNightId[row.id] ??
+                        row.posterOutreachDraft ??
+                        ""
+                      }
+                      onChange={(e) =>
+                        setDraftsByNightId((prev) => ({
+                          ...prev,
+                          [row.id]: e.target.value,
+                        }))
+                      }
+                      className="min-w-[220px] flex-1 rounded-lg border border-white/15 bg-[#151525] px-2.5 py-1 text-[11px] text-[#F8F9FA]"
+                      data-testid="poster-outreach-draft-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSetPosterAsSource(
+                          row.id,
+                          "draft_outreach_ready",
+                          draftsByNightId[row.id] ??
+                            row.posterOutreachDraft ??
+                            ""
+                        )
+                      }
+                      className="rounded-lg bg-[#FFB800] px-2.5 py-1 text-[11px] font-bold text-[#0B0B14]"
+                      data-testid="save-poster-outreach-btn"
+                    >
+                      Save Outreach Draft
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
@@ -467,14 +646,23 @@ export function AdminConsoleView({
             <div>
               <h2 className="font-display flex items-center gap-2 text-xl font-bold text-[#F8F9FA]">
                 <Upload className="h-5 w-5 text-[#00F0FF]" />
-                <span>Update-Intake CSV Importer (Quarantined to Verification Queue)</span>
+                <span>Update-Intake CSV Importer &amp; Source Provenance (Quarantined to Verification Queue)</span>
               </h2>
               <p className="mt-1 text-xs text-[#A0A3BD]">
-                Accepts rows in <code>cleveland-venues-master.csv</code> column format. Every imported row lands strictly in{" "}
+                Accepts rows in <code>cleveland-venues-master.csv</code> column format plus OS-Internal Source Provenance. Every imported row lands strictly in{" "}
                 <strong className="text-[#FFB800]">confidence = needs_verification</strong> on{" "}
-                <code>/admin/verification-queue</code> (never straight to public), stamped with source + date.
+                <code>/admin/verification-queue</code> (never straight to public). Individual poster profile links remain strictly OS-internal.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={handleProvenanceBackfill}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#FFB800]/50 bg-[#FFB800]/15 px-3.5 py-2 text-xs font-bold text-[#FFB800] hover:bg-[#FFB800]/25"
+              data-testid="run-provenance-backfill-btn"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Backfill from research/source-provenance.csv</span>
+            </button>
           </div>
 
           <form onSubmit={handleIntakeCsvImport} className="mt-5 space-y-4">
@@ -507,9 +695,138 @@ export function AdminConsoleView({
               </div>
             </div>
 
+            {/* Amendment 4: Source Provenance Fields */}
+            <div className="rounded-2xl border border-white/10 bg-[#0B0B14]/60 p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#00F0FF]">
+                OS-Internal Source Provenance &amp; Poster-as-Source Metadata
+              </h3>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Source Platform
+                  </label>
+                  <input
+                    type="text"
+                    value={intakeSourcePlatform}
+                    onChange={(e) => setIntakeSourcePlatform(e.target.value)}
+                    placeholder="Facebook, Instagram, TikTok..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-platform-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Source Context (Group / Saved Collection)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakeSourceContext}
+                    onChange={(e) => setIntakeSourceContext(e.target.value)}
+                    placeholder="Saved collection or FB group name..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-context-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Captured Date (YYYY-MM-DD)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakeCapturedDate}
+                    onChange={(e) => setIntakeCapturedDate(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-captured-date-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Poster Name (OS-Internal)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakePosterName}
+                    onChange={(e) => setIntakePosterName(e.target.value)}
+                    placeholder="Original poster name..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-poster-name-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Poster Profile URL (OS-Internal Only • Never Public)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakePosterProfileUrl}
+                    onChange={(e) => setIntakePosterProfileUrl(e.target.value)}
+                    placeholder="https://facebook.com/..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-poster-url-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Source-Stated Contact (Flyer/Handle Only)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakeSourceContactInfo}
+                    onChange={(e) => setIntakeSourceContactInfo(e.target.value)}
+                    placeholder="Only when printed on flyer / public handle..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-contact-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Poster-as-Source Verification Status
+                  </label>
+                  <select
+                    value={intakePosterAsSourceStatus}
+                    onChange={(e) =>
+                      setIntakePosterAsSourceStatus(
+                        e.target.value as
+                          | "none"
+                          | "ask_the_poster"
+                          | "draft_outreach_ready"
+                          | "resolved"
+                      )
+                    }
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-poster-status-select"
+                  >
+                    <option value="none">none (Venue verifiable)</option>
+                    <option value="ask_the_poster">
+                      ask_the_poster (Hold lead — ask original poster)
+                    </option>
+                    <option value="draft_outreach_ready">
+                      draft_outreach_ready (Drafts-first message ready)
+                    </option>
+                    <option value="resolved">resolved</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-[#A0A3BD]">
+                    Drafts-First Poster Outreach Message (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={intakePosterOutreachDraft}
+                    onChange={(e) =>
+                      setIntakePosterOutreachDraft(e.target.value)
+                    }
+                    placeholder="Draft message to poster (never sent automatically)..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-[#0B0B14] px-3 py-1.5 text-xs text-[#F8F9FA]"
+                    data-testid="intake-poster-draft-input"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-[#A0A3BD]">
-                CSV Rows (<code>cleveland-venues-master.csv</code> 21-column format)
+                CSV Rows (<code>cleveland-venues-master.csv</code> 21-column format or 29-column provenance format)
               </label>
               <textarea
                 rows={5}
