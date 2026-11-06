@@ -241,6 +241,13 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "3333 Manchester Rd, Suite 3, Akron, OH 44319": { lat: 40.9968, lng: -81.5542 },
   "4284 Beverly Hills Dr, Brunswick, OH 44212": { lat: 41.2392, lng: -81.8245 },
   "30308 Euclid Ave, Wickliffe, OH 44092": { lat: 41.6132, lng: -81.4648 },
+  "4653 Warner Rd, Garfield Heights, OH 44125": { lat: 41.433, lng: -81.6314 },
+  "9322 Nelson Ave, Cleveland, OH 44105": { lat: 41.4529, lng: -81.6205 },
+  "4125 Lorain Ave, Cleveland, OH 44113": { lat: 41.48, lng: -81.7141 },
+  "26191 Euclid Ave, Euclid, OH 44132": { lat: 41.589, lng: -81.5003 },
+  "24951 Aurora Rd, Bedford Heights, OH 44146": { lat: 41.4114, lng: -81.5028 },
+  "11121 Western Ave, Cleveland, OH 44111": { lat: 41.4703, lng: -81.764 },
+  "1376 N Portage Path, Akron, OH 44313": { lat: 41.1322, lng: -81.5493 },
 };
 
 export function slugify(input: string): string {
