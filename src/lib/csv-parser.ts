@@ -248,6 +248,7 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "24951 Aurora Rd, Bedford Heights, OH 44146": { lat: 41.4114, lng: -81.5028 },
   "11121 Western Ave, Cleveland, OH 44111": { lat: 41.4703, lng: -81.764 },
   "1376 N Portage Path, Akron, OH 44313": { lat: 41.1322, lng: -81.5493 },
+  "3614 E 65th St, Cleveland, OH 44105": { lat: 41.4597, lng: -81.6451 },
 };
 
 export function slugify(input: string): string {

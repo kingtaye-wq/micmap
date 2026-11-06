@@ -17,17 +17,17 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     });
   });
 
-  test("Check 1: Seed reconciliation — Public discovery renders 94 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
+  test("Check 1: Seed reconciliation — Public discovery renders 95 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
     page,
     request,
   }) => {
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "94 Verified Public Nights"
+      "95 Verified Public Nights"
     );
 
     const cards = page.getByTestId("verified-night-card");
-    await expect(cards).toHaveCount(94);
+    await expect(cards).toHaveCount(95);
 
     // Ensure 0 needs_verification cards are on public discovery
     const needsVerCards = page.locator(
@@ -38,7 +38,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     // Spot-check first 10 rows via API against CSV expectations
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(94);
+    expect(apiData.totalPublicVerifiedCount).toBe(95);
     expect(apiData.nights[0].venueName).toBe("Corky's Place");
     expect(apiData.nights[0].dayOfWeek).toBe("Monday");
     expect(apiData.nights[0].startTime).toBe("5:00 PM");
@@ -52,7 +52,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "57"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "94"
+      "95"
     );
 
     const adminRows = page.getByTestId("admin-verification-row");
@@ -65,13 +65,13 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "56"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "95"
+      "96"
     );
 
-    // Confirm public discovery now renders 95 verified nights
+    // Confirm public discovery now renders 96 verified nights
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "95 Verified Public Nights"
+      "96 Verified Public Nights"
     );
   });
 
@@ -258,12 +258,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("freshness-badge-warning").first()
     ).toContainText("Call to confirm");
 
-    // Now set to 91 days unconfirmed -> leaves public discovery (94 -> 93) but stays in admin
+    // Now set to 91 days unconfirmed -> leaves public discovery (95 -> 94) but stays in admin
     await page.goto("/admin/stale");
     await page.getByTestId("set-freshness-91d-btn").click();
     await expect(page.getByTestId("admin-expired-90d-count")).toHaveText("1");
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "93"
+      "94"
     );
 
     // Mobile viewport check (390x844 phone)
@@ -330,18 +330,18 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await expect(page.getByTestId("cleveland-interactive-map")).toBeVisible();
     await expect(page.getByTestId("map-legend")).toBeVisible();
     await expect(page.getByTestId("nights-in-view-count")).toContainText(
-      "Showing 94 of 94 nights matching your filters"
+      "Showing 95 of 95 nights matching your filters"
     );
 
-    // 93 geocoded pins on the map + 1 Location pending in list = 94 total verified nights
+    // 94 geocoded pins on the map + 1 Location pending in list = 95 total verified nights
     const allPins = page.getByTestId("map-pin");
-    await expect(allPins).toHaveCount(93);
+    await expect(allPins).toHaveCount(94);
 
     // Zoom to Lakewood & West Side viewport and verify map pins and Nights in View update in sync
     await page.getByTestId("map-region-WEST_SIDE").click();
     const westSidePinCount = await page.getByTestId("map-pin").count();
     expect(westSidePinCount).toBeGreaterThan(0);
-    expect(westSidePinCount).toBeLessThan(93);
+    expect(westSidePinCount).toBeLessThan(94);
     await expect(page.getByTestId("in-view-pin-count")).toHaveText(
       `${westSidePinCount} Pins`
     );
@@ -419,12 +419,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("intake-date-input").fill("2026-10-31");
     await page.getByTestId("submit-intake-import-btn").click();
 
-    // Imported row must land in needs_verification (57 -> 58), never straight to public (remains 94)
+    // Imported row must land in needs_verification (57 -> 58), never straight to public (remains 95)
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "58"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "94"
+      "95"
     );
     await expect(
       page.getByTestId("admin-verification-queue-list")
@@ -433,23 +433,23 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("admin-verification-queue-list")
     ).toContainText("Playwright Intake Verification Pass");
 
-    // Now click Verify & Publish on the newly imported row (night-152)
+    // Now click Verify & Publish on the newly imported row (night-153)
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-152"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-153"]'
     );
     await importedRow.getByTestId("verify-and-publish-btn").click();
 
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "95"
+      "96"
     );
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "57"
     );
 
-    // Refresh public discovery and confirm 95 Verified Public Nights persists from Supabase DB
+    // Refresh public discovery and confirm 96 Verified Public Nights persists from Supabase DB
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "95 Verified Public Nights"
+      "96 Verified Public Nights"
     );
   });
 
@@ -521,14 +521,14 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     }
   });
 
-  test("Check 16 (Amendment 4 & 2026-11-05 Seed Delta): Source Provenance + Poster-as-Source Rule + 151-Row Seed (94 Public / 57 Queue)", async ({
+  test("Check 16 (Amendment 4 & 2026-11-05 Seed Deltas): Source Provenance + Poster-as-Source Rule + 152-Row Seed (95 Public / 57 Queue)", async ({
     page,
     request,
   }) => {
-    // 1. Verify the 151-row seed (94 public verified nights) including the 8 new 2026-11-05 Instagram pass rows
+    // 1. Verify the 152-row seed (95 public verified nights) including the 9 new 2026-11-05 Instagram pass rows
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(94);
+    expect(apiData.totalPublicVerifiedCount).toBe(95);
 
     const bSideBrass = apiData.nights.find(
       (n: { venueName: string }) =>
@@ -611,6 +611,13 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     expect(roxbury?.dayOfWeek).toBe("Thursday");
     expect(roxbury?.startTime).toBe("9:00 PM");
 
+    const peoples = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Peoples Bar & Grill"
+    );
+    expect(peoples?.dayOfWeek).toBe("Thursday");
+    expect(peoples?.startTime).toBe("UNKNOWN");
+    expect(peoples?.hostOrKj).toBe("DJ Chill Will");
+
     // 2. OS-INTERNAL ONLY: Individual poster profile links never appear in public API or public pages
     for (const n of apiData.nights) {
       expect(n.posterProfileUrl).toBeUndefined();
@@ -631,7 +638,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await firstRow.getByTestId("flag-ask-the-poster-btn").click();
     await expect(firstRow.getByTestId("ask-the-poster-badge")).toBeVisible();
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "94"
+      "95"
     );
 
     // Save a drafts-first outreach message to the poster
@@ -669,7 +676,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("submit-intake-import-btn").click();
 
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-152"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-153"]'
     );
     await expect(importedRow).toContainText("Test Flyer Poster");
     await expect(importedRow).toContainText(
