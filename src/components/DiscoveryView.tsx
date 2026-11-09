@@ -54,7 +54,7 @@ const FULL_METRO_BOUNDS = {
   north: 41.88,
   south: 40.80,
   east: -80.92,
-  west: -82.15,
+  west: -82.42,
 };
 
 const QUICK_VIEWPORTS: Record<

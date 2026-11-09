@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-11-06T02:38:29.013Z",
+  "generatedAt": "2026-11-09T21:41:55.994Z",
   "appName": "Mic Map",
   "appDomain": "micmap.co",
   "metro": "Greater Cleveland",
   "sourceFile": "data/cleveland-venues-master.csv",
   "provenanceSourceFile": "research/source-provenance.csv",
   "counts": {
-    "totalCsvRows": 152,
-    "verifiedPublicNights": 95,
-    "needsVerificationAdminQueueRows": 57,
-    "karaokeRows": 129,
-    "openMicRows": 22,
+    "totalCsvRows": 213,
+    "verifiedPublicNights": 162,
+    "needsVerificationAdminQueueRows": 51,
+    "karaokeRows": 188,
+    "openMicRows": 24,
     "liveBandRows": 1,
-    "canonicalUniqueVenues": 105,
-    "canonicalUniqueHostsKjs": 37,
-    "rowsWithAddressGeocoded": 150,
-    "rowsMissingAddressFlagged": 2,
-    "rowsMissingDayOfWeekPreserved": 10,
-    "rowsMissingStartTimePreserved": 43,
-    "rowsWithSourcedPrimaryGenre": 24,
-    "rowsWithUnknownNotAFit": 152,
-    "provenanceRecordsCount": 21,
-    "rowsBackfilledWithProvenance": 21
+    "canonicalUniqueVenues": 156,
+    "canonicalUniqueHostsKjs": 67,
+    "rowsWithAddressGeocoded": 208,
+    "rowsMissingAddressFlagged": 5,
+    "rowsMissingDayOfWeekPreserved": 9,
+    "rowsMissingStartTimePreserved": 49,
+    "rowsWithSourcedPrimaryGenre": 25,
+    "rowsWithUnknownNotAFit": 213,
+    "provenanceRecordsCount": 72,
+    "rowsBackfilledWithProvenance": 80
   },
   "geocodeFailures": [
     {
@@ -36,6 +36,27 @@
       "venueName": "Town House Tavern",
       "neighborhood": "Grafton",
       "confidence": "needs_verification",
+      "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
+    },
+    {
+      "csvRowNumber": 198,
+      "venueName": "Eurogyro (Kent)",
+      "neighborhood": "Kent",
+      "confidence": "verified",
+      "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
+    },
+    {
+      "csvRowNumber": 199,
+      "venueName": "Eurogyro (Akron)",
+      "neighborhood": "Akron",
+      "confidence": "verified",
+      "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
+    },
+    {
+      "csvRowNumber": 200,
+      "venueName": "JD's Eastside Tavern",
+      "neighborhood": "Cuyahoga Falls",
+      "confidence": "verified",
       "reason": "Address column is blank in cleveland-venues-master.csv; coordinates left null (never invented)."
     }
   ],

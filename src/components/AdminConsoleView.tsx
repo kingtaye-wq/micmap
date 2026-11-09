@@ -30,9 +30,9 @@ export function AdminConsoleView({
 }: AdminConsoleViewProps) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [counts, setCounts] = useState({
-    totalSeededRows: 152,
-    publicVerifiedCount: 95,
-    needsVerificationCount: 57,
+    totalSeededRows: 213,
+    publicVerifiedCount: 162,
+    needsVerificationCount: 51,
     stale45to89Count: 0,
     expired90dCount: 0,
   });
@@ -114,10 +114,10 @@ export function AdminConsoleView({
 
   async function refreshAll() {
     const [verRes, claimsRes, corrRes, modRes] = await Promise.all([
-      fetch("/api/admin/verification"),
-      fetch("/api/claims"),
-      fetch("/api/corrections"),
-      fetch("/api/moderation"),
+      fetch("/api/admin/verification", { cache: "no-store" }),
+      fetch("/api/claims", { cache: "no-store" }),
+      fetch("/api/corrections", { cache: "no-store" }),
+      fetch("/api/moderation", { cache: "no-store" }),
     ]);
     const verData = await verRes.json();
     const claimsData = await claimsRes.json();
@@ -150,10 +150,10 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      await refreshAll();
       setStatusMessage(
         `Promoted "${venueName}" to Public Verified! Public count is now ${data.publicVerifiedCount}.`
       );
-      await refreshAll();
     }
   }
 
@@ -174,10 +174,10 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      await refreshAll();
       setStatusMessage(
         `Updated ${nightId} freshness to ${daysAgo} days ago (${data.updatedNight.freshnessStatus}). Public count: ${data.publicVerifiedCount}.`
       );
-      await refreshAll();
     }
   }
 
@@ -190,8 +190,8 @@ export function AdminConsoleView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ claimId, decision }),
     });
-    setStatusMessage(`Claim ${decision} and stamped last_confirmed!`);
     await refreshAll();
+    setStatusMessage(`Claim ${decision} and stamped last_confirmed!`);
   }
 
   async function handleCorrectionDecision(
@@ -203,8 +203,8 @@ export function AdminConsoleView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ correctionId, decision }),
     });
-    setStatusMessage(`Community correction ${decision}!`);
     await refreshAll();
+    setStatusMessage(`Community correction ${decision}!`);
   }
 
   async function handleIntakeCsvImport(e: React.FormEvent) {
@@ -228,10 +228,10 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      await refreshAll();
       setStatusMessage(
         `Imported ${data.importedCount} row(s) from "${intakeSource}" (${intakeDate}) into Needs Verification Queue (${data.needsVerificationCount} in queue · ${data.publicVerifiedCount} public verified).`
       );
-      await refreshAll();
       setActiveTab("verification");
     } else if (data.error) {
       setStatusMessage(`Import error: ${data.error}`);
@@ -255,10 +255,13 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      await refreshAll();
+      setVerificationQueue((prev) =>
+        prev.map((r) => (r.id === nightId ? data.updatedNight : r))
+      );
       setStatusMessage(
         `Poster-as-Source updated for ${data.updatedNight.venueName}: status = "${data.updatedNight.posterAsSourceStatus}" (lead remains held in needs_verification).`
       );
-      await refreshAll();
     }
   }
 
@@ -270,10 +273,10 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      await refreshAll();
       setStatusMessage(
         `Backfilled ${data.rowsBackfilled} row(s) across ${data.provenanceRecordsCount} provenance records from research/source-provenance.csv.`
       );
-      await refreshAll();
     }
   }
 
