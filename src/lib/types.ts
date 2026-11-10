@@ -300,24 +300,94 @@ const WEEKDAYS = [
 
 export type WeekdayName = (typeof WEEKDAYS)[number];
 
+export interface ClevelandCalendarDate {
+  year: number;
+  month: number; // 1..12
+  dayOfMonth: number; // 1..31
+  weekday: WeekdayName;
+  nthWeekdayOfMonth: number; // 1..5
+  isLastWeekdayOfMonth: boolean;
+  isoDate: string; // YYYY-MM-DD
+}
+
+/**
+ * Parse a Date or YYYY-MM-DD date string into a Date anchored at 17:00 UTC (12:00 PM EST / 1:00 PM EDT in America/New_York).
+ */
+export function parseClevelandDateInput(
+  dateOrIso?: Date | string | null
+): Date {
+  if (!dateOrIso) return new Date();
+  if (dateOrIso instanceof Date) {
+    return Number.isNaN(dateOrIso.getTime()) ? new Date() : dateOrIso;
+  }
+  const trimmed = String(dateOrIso).trim();
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (ymd) {
+    const year = Number(ymd[1]);
+    const month = Number(ymd[2]);
+    const day = Number(ymd[3]);
+    return new Date(Date.UTC(year, month - 1, day, 17, 0, 0));
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+/**
+ * Compute calendar date components in America/New_York time, including nth-weekday of the month and whether it is the last occurrence of that weekday in the month.
+ */
+export function getClevelandCalendarDate(
+  dateOrIso: Date | string = new Date()
+): ClevelandCalendarDate {
+  const d = parseClevelandDateInput(dateOrIso);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "long",
+  }).formatToParts(d);
+
+  const year = Number(parts.find((p) => p.type === "year")?.value || 2026);
+  const month = Number(parts.find((p) => p.type === "month")?.value || 11);
+  const dayOfMonth = Number(parts.find((p) => p.type === "day")?.value || 1);
+  const rawWeekday = parts.find((p) => p.type === "weekday")?.value || "Monday";
+  const weekday =
+    WEEKDAYS.find((w) => w.toLowerCase() === rawWeekday.toLowerCase()) ||
+    "Monday";
+
+  const nthWeekdayOfMonth = Math.floor((dayOfMonth - 1) / 7) + 1;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const isLastWeekdayOfMonth = dayOfMonth + 7 > daysInMonth;
+  const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(
+    dayOfMonth
+  ).padStart(2, "0")}`;
+
+  return {
+    year,
+    month,
+    dayOfMonth,
+    weekday,
+    nthWeekdayOfMonth,
+    isLastWeekdayOfMonth,
+    isoDate,
+  };
+}
+
 /**
  * Returns the live current day of week in Cleveland, OH (America/New_York timezone).
  */
-export function getClevelandCurrentDayOfWeek(now: Date = new Date()): WeekdayName {
-  const formatted = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "long",
-  }).format(now);
-  return (
-    WEEKDAYS.find((d) => d.toLowerCase() === formatted.toLowerCase()) ||
-    "Monday"
-  );
+export function getClevelandCurrentDayOfWeek(
+  now: Date | string = new Date()
+): WeekdayName {
+  return getClevelandCalendarDate(now).weekday;
 }
 
 /**
  * Returns tomorrow's day of week in Cleveland, OH (America/New_York timezone).
  */
-export function getClevelandTomorrowDayOfWeek(now: Date = new Date()): WeekdayName {
+export function getClevelandTomorrowDayOfWeek(
+  now: Date | string = new Date()
+): WeekdayName {
   const today = getClevelandCurrentDayOfWeek(now);
   const idx = WEEKDAYS.findIndex(
     (d) => d.toLowerCase() === today.toLowerCase()
@@ -325,15 +395,117 @@ export function getClevelandTomorrowDayOfWeek(now: Date = new Date()): WeekdayNa
   return WEEKDAYS[(idx + 1) % 7] || "Tuesday";
 }
 
+export interface MonthlyWeekdayQualifier {
+  hasNthQualifier: boolean;
+  occurrences: number[];
+  isLastOfMonth: boolean;
+}
+
+/**
+ * Parse monthly (nth-weekday) qualifiers from a night's dayOfWeek schedule string:
+ * e.g. "Monday (1st Monday of month)", "Wednesday (4th Wednesday)", "Wednesday (2nd & 4th)",
+ * "Thursday (1st Thursday)", "Thursday (2nd + 4th Thursday)", "Wednesday (1st & 3rd)",
+ * "Tuesday (3rd Tuesday)", "Sunday (last Sunday of month)".
+ */
+export function parseMonthlyWeekdayQualifier(
+  dayOfWeekText: string
+): MonthlyWeekdayQualifier {
+  const text = (dayOfWeekText || "").toLowerCase();
+  const occurrences: number[] = [];
+
+  if (/\b(1st|first)\b/i.test(text)) occurrences.push(1);
+  if (/\b(2nd|second)\b/i.test(text)) occurrences.push(2);
+  if (/\b(3rd|third)\b/i.test(text)) occurrences.push(3);
+  if (/\b(4th|fourth)\b/i.test(text)) occurrences.push(4);
+  if (/\b(5th|fifth)\b/i.test(text)) occurrences.push(5);
+
+  const isLastOfMonth = /\blast\b/i.test(text);
+
+  return {
+    hasNthQualifier: occurrences.length > 0 || isLastOfMonth,
+    occurrences,
+    isLastOfMonth,
+  };
+}
+
+/**
+ * Evaluates whether a night's monthly (nth-weekday) qualifier matches the given target date in America/New_York time.
+ * Weekday-only rows (with no nth-weekday qualifier) return true.
+ */
+export function matchesMonthlyWeekdayQualifier(
+  dayOfWeekText: string,
+  targetDate: Date | string = new Date()
+): boolean {
+  const qualifier = parseMonthlyWeekdayQualifier(dayOfWeekText);
+  if (!qualifier.hasNthQualifier) {
+    return true;
+  }
+  const cal = getClevelandCalendarDate(targetDate);
+  if (qualifier.occurrences.includes(cal.nthWeekdayOfMonth)) {
+    return true;
+  }
+  if (qualifier.isLastOfMonth && cal.isLastWeekdayOfMonth) {
+    return true;
+  }
+  return false;
+}
+
+const ISO_DOW_MAP: Record<string, number> = {
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sunday: 7,
+};
+
+/**
+ * Resolves a day selection ("Tonight", "Tomorrow", "YYYY-MM-DD", or a weekday name "Monday".."Sunday")
+ * to its target calendar Date in the Mon–Sun week of referenceDate (in America/New_York time).
+ */
+export function resolveTargetDateForDaySelection(
+  selectedDay: string,
+  referenceDate: Date | string = new Date()
+): Date {
+  const baseDate = parseClevelandDateInput(referenceDate);
+  const trimmed = (selectedDay || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return parseClevelandDateInput(trimmed);
+  }
+  const raw = trimmed.toLowerCase();
+  const cal = getClevelandCalendarDate(baseDate);
+
+  if (raw === "tonight" || raw === "") {
+    return baseDate;
+  }
+  if (raw === "tomorrow") {
+    return new Date(
+      Date.UTC(cal.year, cal.month - 1, cal.dayOfMonth + 1, 17, 0, 0)
+    );
+  }
+  const targetIsoDow = ISO_DOW_MAP[raw];
+  if (targetIsoDow) {
+    const currentIsoDow = ISO_DOW_MAP[cal.weekday.toLowerCase()] || 1;
+    const deltaDays = targetIsoDow - currentIsoDow;
+    return new Date(
+      Date.UTC(cal.year, cal.month - 1, cal.dayOfMonth + deltaDays, 17, 0, 0)
+    );
+  }
+  return baseDate;
+}
+
 export function matchesDayFilter(
-  night: Pick<NightRecord, "dayOfWeek" | "formatType">,
+  night: Pick<NightRecord, "dayOfWeek" | "formatType"> & {
+    rawDayOfWeek?: string;
+  },
   selectedDay?: string | null,
-  referenceDate: Date = new Date()
+  referenceDate: Date | string = new Date()
 ): boolean {
   if (!selectedDay || selectedDay === "ALL" || selectedDay.trim() === "") {
     return true;
   }
-  const day = night.dayOfWeek;
+  const day = night.dayOfWeek || night.rawDayOfWeek || "";
   if (!day || day.toUpperCase() === "UNKNOWN") {
     return false;
   }
@@ -349,17 +521,24 @@ export function matchesDayFilter(
     );
   }
 
-  const target =
-    rawTarget === "tonight"
-      ? getClevelandCurrentDayOfWeek(referenceDate).toLowerCase()
-      : rawTarget === "tomorrow"
-      ? getClevelandTomorrowDayOfWeek(referenceDate).toLowerCase()
-      : rawTarget;
+  const targetDate = resolveTargetDateForDaySelection(
+    selectedDay,
+    referenceDate
+  );
+  const targetCal = getClevelandCalendarDate(targetDate);
+  const targetWeekdayLower = targetCal.weekday.toLowerCase();
 
   if (dayLower === "thursday-sunday") {
-    return ["thursday", "friday", "saturday", "sunday"].includes(target);
+    return ["thursday", "friday", "saturday", "sunday"].includes(
+      targetWeekdayLower
+    );
   }
-  return dayLower.startsWith(target);
+
+  if (!dayLower.startsWith(targetWeekdayLower)) {
+    return false;
+  }
+
+  return matchesMonthlyWeekdayQualifier(day, targetDate);
 }
 
 export function distanceMiles(

@@ -17,17 +17,17 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     });
   });
 
-  test("Check 1: Seed reconciliation — Public discovery renders 162 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
+  test("Check 1: Seed reconciliation — Public discovery renders 169 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
     page,
     request,
   }) => {
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "162 Verified Public Nights"
+      "169 Verified Public Nights"
     );
 
     const cards = page.getByTestId("verified-night-card");
-    await expect(cards).toHaveCount(162);
+    await expect(cards).toHaveCount(169);
 
     // Ensure 0 needs_verification cards are on public discovery
     const needsVerCards = page.locator(
@@ -38,7 +38,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     // Spot-check first 10 rows via API against CSV expectations
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(162);
+    expect(apiData.totalPublicVerifiedCount).toBe(169);
     expect(apiData.nights[0].venueName).toBe("Corky's Place");
     expect(apiData.nights[0].dayOfWeek).toBe("Monday");
     expect(apiData.nights[0].startTime).toBe("5:00 PM");
@@ -52,7 +52,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "51"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "162"
+      "169"
     );
 
     const adminRows = page.getByTestId("admin-verification-row");
@@ -65,13 +65,13 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "50"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "163"
+      "170"
     );
 
-    // Confirm public discovery now renders 163 verified nights
+    // Confirm public discovery now renders 170 verified nights
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "163 Verified Public Nights"
+      "170 Verified Public Nights"
     );
   });
 
@@ -258,12 +258,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("freshness-badge-warning").first()
     ).toContainText("Call to confirm");
 
-    // Now set to 91 days unconfirmed -> leaves public discovery (162 -> 161) but stays in admin
+    // Now set to 91 days unconfirmed -> leaves public discovery (169 -> 168) but stays in admin
     await page.goto("/admin/stale");
     await page.getByTestId("set-freshness-91d-btn").click();
     await expect(page.getByTestId("admin-expired-90d-count")).toHaveText("1");
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "161"
+      "168"
     );
 
     // Mobile viewport check (390x844 phone)
@@ -330,18 +330,18 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await expect(page.getByTestId("cleveland-interactive-map")).toBeVisible();
     await expect(page.getByTestId("map-legend")).toBeVisible();
     await expect(page.getByTestId("nights-in-view-count")).toContainText(
-      "Showing 162 of 162 nights matching your filters"
+      "Showing 169 of 169 nights matching your filters"
     );
 
-    // 158 geocoded pins on the map + 4 Location pending in list = 162 total verified nights
+    // 165 geocoded pins on the map + 4 Location pending in list = 169 total verified nights
     const allPins = page.getByTestId("map-pin");
-    await expect(allPins).toHaveCount(158);
+    await expect(allPins).toHaveCount(165);
 
     // Zoom to Lakewood & West Side viewport and verify map pins and Nights in View update in sync
     await page.getByTestId("map-region-WEST_SIDE").click();
     const westSidePinCount = await page.getByTestId("map-pin").count();
     expect(westSidePinCount).toBeGreaterThan(0);
-    expect(westSidePinCount).toBeLessThan(158);
+    expect(westSidePinCount).toBeLessThan(165);
     await expect(page.getByTestId("in-view-pin-count")).toHaveText(
       `${westSidePinCount} Pins`
     );
@@ -419,12 +419,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("intake-date-input").fill("2026-10-31");
     await page.getByTestId("submit-intake-import-btn").click();
 
-    // Imported row must land in needs_verification (51 -> 52), never straight to public (remains 162)
+    // Imported row must land in needs_verification (51 -> 52), never straight to public (remains 169)
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "52"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "162"
+      "169"
     );
     await expect(
       page.getByTestId("admin-verification-queue-list")
@@ -433,23 +433,23 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("admin-verification-queue-list")
     ).toContainText("Playwright Intake Verification Pass");
 
-    // Now click Verify & Publish on the newly imported row (night-214)
+    // Now click Verify & Publish on the newly imported row (night-221)
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-214"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-221"]'
     );
     await importedRow.getByTestId("verify-and-publish-btn").click();
 
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "163"
+      "170"
     );
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "51"
     );
 
-    // Refresh public discovery and confirm 163 Verified Public Nights persists from Supabase DB
+    // Refresh public discovery and confirm 170 Verified Public Nights persists from Supabase DB
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "163 Verified Public Nights"
+      "170 Verified Public Nights"
     );
   });
 
@@ -490,18 +490,18 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       }
     }
 
-    // Verify deterministic Monday check (8 Monday nights, 0 Friday cards, 0 Thursday-Sunday cards)
-    await page.goto("/tonight?day=Monday");
+    // Verify deterministic Monday check on 2nd Monday 2026-11-09 (10 Monday nights — Prosperity Social Club 1st Monday excluded, 0 Friday cards)
+    await page.goto("/tonight?date=2026-11-09");
     const mondayCards = page.getByTestId("verified-night-card");
-    await expect(mondayCards).toHaveCount(8);
-    for (let i = 0; i < 8; i++) {
+    await expect(mondayCards).toHaveCount(10);
+    for (let i = 0; i < 10; i++) {
       const d =
         (await mondayCards.nth(i).getAttribute("data-day-of-week")) || "";
       expect(d.toLowerCase().startsWith("monday")).toBe(true);
     }
 
-    // Verify deterministic Tuesday check (13 Tuesday nights including Bianca's Ristorante Italiano, The Recovery Room, Lioness Den Speakeasy & The Nelson off 93rd, 0 Friday cards)
-    await page.goto("/tonight?day=Tuesday");
+    // Verify deterministic Tuesday check on 2nd Tuesday 2026-11-10 (13 Tuesday nights — BOP STOP 3rd Tuesday excluded, 0 Friday cards)
+    await page.goto("/tonight?date=2026-11-10");
     const tuesdayCards = page.getByTestId("verified-night-card");
     await expect(tuesdayCards).toHaveCount(13);
     for (let i = 0; i < 13; i++) {
@@ -510,25 +510,25 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       expect(d.toLowerCase().startsWith("tuesday")).toBe(true);
     }
 
-    // Verify deterministic Sunday check (16 Sunday + 1 Thursday-Sunday = 17 nights, 0 Friday cards)
-    await page.goto("/tonight?day=Sunday");
+    // Verify deterministic Sunday check on 3rd Sunday 2026-11-15 (17 weekly Sunday + 1 Thursday-Sunday = 18 nights — Dunlap's Corner Bar last Sunday excluded)
+    await page.goto("/tonight?date=2026-11-15");
     const sundayCards = page.getByTestId("verified-night-card");
-    await expect(sundayCards).toHaveCount(17);
-    for (let i = 0; i < 17; i++) {
+    await expect(sundayCards).toHaveCount(18);
+    for (let i = 0; i < 18; i++) {
       const d =
         (await sundayCards.nth(i).getAttribute("data-day-of-week")) || "";
       expect(d.toLowerCase().startsWith("friday")).toBe(false);
     }
   });
 
-  test("Check 16 (Amendment 4 & Seed Deltas through 2026-11-09): Source Provenance + Poster-as-Source Rule + 213-Row Seed (162 Public / 51 Queue)", async ({
+  test("Check 16 (Amendment 4 & Seed Deltas through 2026-11-10): Source Provenance + Poster-as-Source Rule + 220-Row Seed (169 Public / 51 Queue)", async ({
     page,
     request,
   }) => {
-    // 1. Verify the 213-row seed (162 public verified nights) including the latest 2026-11-06..2026-11-09 rows
+    // 1. Verify the 220-row seed (169 public verified nights) including the latest 2026-11-06..2026-11-10 rows
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(162);
+    expect(apiData.totalPublicVerifiedCount).toBe(169);
 
     const bSideBrass = apiData.nights.find(
       (n: { venueName: string }) =>
@@ -556,7 +556,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     expect(lionessTuesday?.startTime).toBe("6:00 PM");
     expect(lionessTuesday?.nightType).toBe("karaoke");
 
-    // Verify 2026-11-05..2026-11-09 seed rows and enrichments
+    // Verify 2026-11-05..2026-11-10 seed rows and enrichments
     const communion = apiData.nights.find(
       (n: { venueName: string }) => n.venueName === "Communion Social Lounge"
     );
@@ -627,6 +627,63 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     expect(killbox?.hostOrKj).toBe("Angelo");
     expect(killbox?.lat).toBeCloseTo(41.102, 3);
 
+    // Verify the 7 new rows from 2026-11-09 PM & 2026-11-10 Midnight runs (commit 6f8b4c3)
+    const dunlaps = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Dunlap's Corner Bar"
+    );
+    expect(dunlaps?.dayOfWeek).toBe("Sunday (last Sunday of month)");
+    expect(dunlaps?.startTime).toBe("8:00 PM");
+    expect(dunlaps?.lat).toBeCloseTo(41.4654, 3);
+
+    const doubleExposure = apiData.nights.find(
+      (n: { venueName: string }) =>
+        n.venueName === "Double Exposure Bar & Deli"
+    );
+    expect(doubleExposure?.dayOfWeek).toBe("Sunday");
+    expect(doubleExposure?.startTime).toBe("8:00 PM");
+    expect(doubleExposure?.lat).toBeCloseTo(41.4752, 3);
+
+    const mrZubs = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Mr. Zub's Deli & Bar"
+    );
+    expect(mrZubs?.dayOfWeek).toBe("Monday");
+    expect(mrZubs?.startTime).toBe("7:00 PM");
+    expect(mrZubs?.lat).toBeCloseTo(41.0964, 3);
+
+    const basementValley = apiData.nights.find(
+      (n: { venueName: string }) =>
+        n.venueName === "The Basement in the Valley"
+    );
+    expect(basementValley?.dayOfWeek).toBe("Monday");
+    expect(basementValley?.startTime).toBe("8:00 PM");
+    expect(basementValley?.hostOrKj).toBe("Causin' Treble Entertainment");
+    expect(basementValley?.lat).toBeCloseTo(41.1354, 3);
+
+    const barPhoenixTue = apiData.nights.find(
+      (n: { venueName: string; dayOfWeek: string }) =>
+        n.venueName === "Bar Phoenix" && n.dayOfWeek === "Tuesday"
+    );
+    expect(barPhoenixTue?.nightType).toBe("open_mic");
+    expect(barPhoenixTue?.startTime).toBe("UNKNOWN");
+    expect(barPhoenixTue?.hostOrKj).toBe("Vee (host), with B-Nyce");
+    expect(barPhoenixTue?.lat).toBeCloseTo(41.0798, 3);
+
+    const hydrant = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "The Hydrant Pub & Grub"
+    );
+    expect(hydrant?.dayOfWeek).toBe("Monday");
+    expect(hydrant?.startTime).toBe("8:00 PM");
+    expect(hydrant?.hostOrKj).toBe("Bad Boy Productions");
+    expect(hydrant?.lat).toBeCloseTo(41.3868, 3);
+
+    const pezz = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Pez'z Bar-N-Grille"
+    );
+    expect(pezz?.dayOfWeek).toBe("Wednesday");
+    expect(pezz?.startTime).toBe("8:00 PM");
+    expect(pezz?.hostOrKj).toBe("DJ Flash Gordon");
+    expect(pezz?.lat).toBeCloseTo(41.4929, 3);
+
     // 2. OS-INTERNAL ONLY: Individual poster profile links never appear in public API or public pages
     for (const n of apiData.nights) {
       expect(n.posterProfileUrl).toBeUndefined();
@@ -647,7 +704,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await firstRow.getByTestId("flag-ask-the-poster-btn").click();
     await expect(firstRow.getByTestId("ask-the-poster-badge")).toBeVisible();
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "162"
+      "169"
     );
 
     // Save a drafts-first outreach message to the poster
@@ -685,12 +742,122 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("submit-intake-import-btn").click();
 
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-214"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-221"]'
     );
     await expect(importedRow).toContainText("Test Flyer Poster");
     await expect(importedRow).toContainText(
       "@testflyerposter (printed on flyer)"
     );
     await expect(importedRow.getByTestId("ask-the-poster-badge")).toBeVisible();
+  });
+
+  test("Check 17 (recessOS#99): Tonight filter enforces monthly (nth-weekday) qualifiers per night-row across all 3 acceptance dates", async ({
+    page,
+    request,
+  }) => {
+    // Acceptance Case 1: Mon Nov 9, 2026 (2nd Monday)
+    // Prosperity Social Club ("Monday (1st Monday of month)", night-36) must NOT appear in Tonight
+    const monNov9Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-09")
+    ).json();
+    expect(monNov9Api.filtersApplied.date).toBe("2026-11-09");
+    expect(monNov9Api.filtersApplied.weekday).toBe("Monday");
+    expect(monNov9Api.filtersApplied.nthWeekdayOfMonth).toBe(2);
+    expect(
+      monNov9Api.nights.some(
+        (n: { venueName: string }) => n.venueName === "Prosperity Social Club"
+      )
+    ).toBe(false);
+
+    // Control: On 1st Monday (Mon Nov 2, 2026), Prosperity Social Club MUST appear
+    const monNov2Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-02")
+    ).json();
+    expect(
+      monNov2Api.nights.some(
+        (n: { venueName: string }) => n.venueName === "Prosperity Social Club"
+      )
+    ).toBe(true);
+
+    await page.goto("/tonight?date=2026-11-09");
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-36"]')
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-1"]')
+    ).toHaveCount(1);
+
+    // Acceptance Case 2: Wed Nov 11, 2026 (2nd Wednesday)
+    // Loganberry Books "Broadsides & Ephemera" ("Wednesday (4th Wednesday)", night-76) must NOT appear
+    // Control same night: B Side Lounge "The People Poetry" ("Wednesday (2nd & 4th)", night-73) MUST appear
+    const wedNov11Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-11")
+    ).json();
+    expect(wedNov11Api.filtersApplied.date).toBe("2026-11-11");
+    expect(wedNov11Api.filtersApplied.weekday).toBe("Wednesday");
+    expect(wedNov11Api.filtersApplied.nthWeekdayOfMonth).toBe(2);
+    expect(
+      wedNov11Api.nights.some(
+        (n: { id: string }) => n.id === "night-76"
+      )
+    ).toBe(false);
+    expect(
+      wedNov11Api.nights.some(
+        (n: { id: string }) => n.id === "night-73"
+      )
+    ).toBe(true);
+
+    await page.goto("/tonight?date=2026-11-11");
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-76"]')
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-73"]')
+    ).toHaveCount(1);
+
+    // Acceptance Case 3: Thu Nov 12, 2026 (2nd Thursday)
+    // Spotlight Cleveland "Bluegrass Jam" ("Thursday (1st Thursday)", night-41) must NOT appear
+    // Same venue: Spotlight Cleveland "Thematic Open Mic" ("Thursday (2nd + 4th Thursday)", night-42) MUST appear
+    const thuNov12Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-12")
+    ).json();
+    expect(thuNov12Api.filtersApplied.date).toBe("2026-11-12");
+    expect(thuNov12Api.filtersApplied.weekday).toBe("Thursday");
+    expect(thuNov12Api.filtersApplied.nthWeekdayOfMonth).toBe(2);
+    expect(
+      thuNov12Api.nights.some(
+        (n: { id: string }) => n.id === "night-41"
+      )
+    ).toBe(false);
+    expect(
+      thuNov12Api.nights.some(
+        (n: { id: string }) => n.id === "night-42"
+      )
+    ).toBe(true);
+
+    await page.goto("/tonight?date=2026-11-12");
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-41"]')
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="verified-night-card"][data-night-id="night-42"]')
+    ).toHaveCount(1);
+
+    // Also verify "Sunday (last Sunday of month)" for Dunlap's Corner Bar (night-214):
+    // Excluded on Sun Nov 15, 2026; Included on Sun Nov 29, 2026 (last Sunday of Nov 2026)
+    const sunNov15Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-15")
+    ).json();
+    expect(
+      sunNov15Api.nights.some((n: { id: string }) => n.id === "night-214")
+    ).toBe(false);
+
+    const sunNov29Api = await (
+      await request.get("/api/nights?day=Tonight&date=2026-11-29")
+    ).json();
+    expect(sunNov29Api.filtersApplied.isLastWeekdayOfMonth).toBe(true);
+    expect(
+      sunNov29Api.nights.some((n: { id: string }) => n.id === "night-214")
+    ).toBe(true);
   });
 });

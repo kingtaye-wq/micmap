@@ -9,6 +9,7 @@ import {
   getClevelandTomorrowDayOfWeek,
   matchesDayFilter,
   matchesGenreFilter,
+  parseClevelandDateInput,
 } from "@/lib/types";
 import {
   APP_NAME,
@@ -44,6 +45,7 @@ import {
 interface DiscoveryViewProps {
   initialNights: NightRecord[];
   defaultDay?: string;
+  initialDate?: string;
   pageTitle?: string;
   pageSubtitle?: string;
 }
@@ -124,26 +126,41 @@ const NEIGHBORHOOD_OPTIONS = [
 export function DiscoveryView({
   initialNights,
   defaultDay = "ALL",
+  initialDate,
   pageTitle = "Find your crowd tonight",
 }: DiscoveryViewProps) {
+  const [referenceDate, setReferenceDate] = useState<Date>(() =>
+    initialDate ? parseClevelandDateInput(initialDate) : new Date()
+  );
   const [tonightDay, setTonightDay] = useState<string>(() =>
-    getClevelandCurrentDayOfWeek()
+    getClevelandCurrentDayOfWeek(
+      initialDate ? parseClevelandDateInput(initialDate) : new Date()
+    )
   );
   const [tomorrowDay, setTomorrowDay] = useState<string>(() =>
-    getClevelandTomorrowDayOfWeek()
+    getClevelandTomorrowDayOfWeek(
+      initialDate ? parseClevelandDateInput(initialDate) : new Date()
+    )
   );
-  const [selectedDay, setSelectedDay] = useState<string>(() =>
-    defaultDay.toLowerCase() === "tonight"
-      ? getClevelandCurrentDayOfWeek()
+  const [selectedDay, setSelectedDay] = useState<string>(() => {
+    const baseDate = initialDate
+      ? parseClevelandDateInput(initialDate)
+      : new Date();
+    return defaultDay.toLowerCase() === "tonight"
+      ? getClevelandCurrentDayOfWeek(baseDate)
       : defaultDay.toLowerCase() === "tomorrow"
-      ? getClevelandTomorrowDayOfWeek()
-      : defaultDay
-  );
+      ? getClevelandTomorrowDayOfWeek(baseDate)
+      : defaultDay;
+  });
 
   // Re-evaluate live America/New_York weekday on client mount so Tonight view is never stale
   useEffect(() => {
-    const liveToday = getClevelandCurrentDayOfWeek(new Date());
-    const liveTomorrow = getClevelandTomorrowDayOfWeek(new Date());
+    const baseDate = initialDate
+      ? parseClevelandDateInput(initialDate)
+      : new Date();
+    setReferenceDate(baseDate);
+    const liveToday = getClevelandCurrentDayOfWeek(baseDate);
+    const liveTomorrow = getClevelandTomorrowDayOfWeek(baseDate);
     setTonightDay(liveToday);
     setTomorrowDay(liveTomorrow);
     if (defaultDay.toLowerCase() === "tonight") {
@@ -151,7 +168,7 @@ export function DiscoveryView({
     } else if (defaultDay.toLowerCase() === "tomorrow") {
       setSelectedDay(liveTomorrow);
     }
-  }, [defaultDay]);
+  }, [defaultDay, initialDate]);
   const [selectedType, setSelectedType] = useState<
     "ALL" | "karaoke" | "open_mic"
   >("ALL");
@@ -213,7 +230,10 @@ export function DiscoveryView({
         return false;
       }
 
-      if (selectedDay !== "ALL" && !matchesDayFilter(night, selectedDay)) {
+      if (
+        selectedDay !== "ALL" &&
+        !matchesDayFilter(night, selectedDay, referenceDate)
+      ) {
         return false;
       }
 
@@ -251,6 +271,7 @@ export function DiscoveryView({
   }, [
     initialNights,
     selectedDay,
+    referenceDate,
     selectedType,
     selectedGenre,
     selectedNeighborhood,

@@ -299,6 +299,15 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "7500 Cedar Ave, Cleveland, OH 44103": { lat: 41.5003, lng: -81.637 },
   "1479 SOM Ctr Rd, Mayfield Heights, OH 44124": { lat: 41.5205, lng: -81.4386 },
   "1305 E Tallmadge Ave, Akron, OH 44310": { lat: 41.102, lng: -81.4678 },
+  "3258 W 32nd St, Cleveland, OH 44109": { lat: 41.4654, lng: -81.7043 },
+  "3081 E 93rd St, Cleveland, OH 44104": { lat: 41.4752, lng: -81.6214 },
+  "795 W Market St, Akron, OH 44303": { lat: 41.0964, lng: -81.5429 },
+  "1841 Merriman Rd, Akron, OH 44313": { lat: 41.1354, lng: -81.5545 },
+  "1282 Weathervane Lane, Akron, OH 44313": { lat: 41.1354, lng: -81.5545 },
+  "786 Front St, Berea, OH": { lat: 41.3868, lng: -81.853 },
+  "786 Front St, Berea, OH 44017": { lat: 41.3868, lng: -81.853 },
+  "5348 E Lake Rd, Sheffield Lake, OH 44054": { lat: 41.4929, lng: -82.0987 },
+  "5348 Lake Rd, Sheffield Lake, OH 44054": { lat: 41.4929, lng: -82.0987 },
 };
 
 export function slugify(input: string): string {
@@ -1067,50 +1076,16 @@ export function matchesGenreFilter(
   return { matches: false, fitLevel: "none" };
 }
 
-import {
+export {
   getClevelandCurrentDayOfWeek,
   getClevelandTomorrowDayOfWeek,
+  parseClevelandDateInput,
+  getClevelandCalendarDate,
+  parseMonthlyWeekdayQualifier,
+  matchesMonthlyWeekdayQualifier,
+  resolveTargetDateForDaySelection,
+  matchesDayFilter,
 } from "./types";
-
-/**
- * Day-of-week filter matching (supports Monday..Sunday, "Tonight", "Tomorrow", "Weekend", or "ALL")
- */
-export function matchesDayFilter(
-  night: Pick<NightRecord, "dayOfWeek" | "formatType">,
-  selectedDay?: string | null,
-  referenceDate: Date = new Date()
-): boolean {
-  if (!selectedDay || selectedDay === "ALL" || selectedDay.trim() === "") {
-    return true;
-  }
-  const day = night.dayOfWeek;
-  if (!day || day.toUpperCase() === "UNKNOWN") {
-    return false;
-  }
-  const rawTarget = selectedDay.toLowerCase().trim();
-  const dayLower = day.toLowerCase().trim();
-
-  if (rawTarget === "weekend" || rawTarget === "this weekend") {
-    return (
-      dayLower.startsWith("friday") ||
-      dayLower.startsWith("saturday") ||
-      dayLower.startsWith("sunday") ||
-      dayLower === "thursday-sunday"
-    );
-  }
-
-  const target =
-    rawTarget === "tonight"
-      ? getClevelandCurrentDayOfWeek(referenceDate).toLowerCase()
-      : rawTarget === "tomorrow"
-      ? getClevelandTomorrowDayOfWeek(referenceDate).toLowerCase()
-      : rawTarget;
-
-  if (dayLower === "thursday-sunday") {
-    return ["thursday", "friday", "saturday", "sunday"].includes(target);
-  }
-  return dayLower.startsWith(target);
-}
 
 /**
  * Parse update-intake CSV rows in cleveland-venues-master.csv format (+ optional provenance fields).
