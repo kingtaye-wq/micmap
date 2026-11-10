@@ -684,6 +684,15 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     expect(pezz?.hostOrKj).toBe("DJ Flash Gordon");
     expect(pezz?.lat).toBeCloseTo(41.4929, 3);
 
+    // Verify 2026-11-10 AM IG enrichment (commit 84c4d7d): The 1899 Pub Thursday start_time filled to 10:00 PM
+    const pub1899 = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "The 1899 Pub"
+    );
+    expect(pub1899?.dayOfWeek).toBe("Thursday");
+    expect(pub1899?.startTime).toBe("10:00 PM");
+    expect(pub1899?.lastConfirmedText).toBe("2026-11-10");
+    expect(pub1899?.lat).toBeCloseTo(41.6405, 3);
+
     // 2. OS-INTERNAL ONLY: Individual poster profile links never appear in public API or public pages
     for (const n of apiData.nights) {
       expect(n.posterProfileUrl).toBeUndefined();

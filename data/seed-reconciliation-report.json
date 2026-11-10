@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T05:56:02.147Z",
+  "generatedAt": "2026-11-10T15:32:10.129Z",
   "appName": "Mic Map",
   "appDomain": "micmap.co",
   "metro": "Greater Cleveland",
@@ -17,7 +17,7 @@
     "rowsWithAddressGeocoded": 215,
     "rowsMissingAddressFlagged": 5,
     "rowsMissingDayOfWeekPreserved": 9,
-    "rowsMissingStartTimePreserved": 50,
+    "rowsMissingStartTimePreserved": 49,
     "rowsWithSourcedPrimaryGenre": 25,
     "rowsWithUnknownNotAFit": 220,
     "provenanceRecordsCount": 79,
