@@ -830,7 +830,7 @@ export async function importIntakeCsvToQueue(params: {
   const store = await syncStoreFromSupabase();
   const maxRow = store.nights.reduce(
     (max, n) => Math.max(max, n.csvRowNumber || 0),
-    220
+    227
   );
   const importedNights = parseIntakeCsvRows({
     csvContent: params.csvContent,

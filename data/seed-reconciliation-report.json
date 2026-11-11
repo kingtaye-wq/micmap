@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-11-10T15:32:10.129Z",
+  "generatedAt": "2026-11-11T07:35:59.310Z",
   "appName": "Mic Map",
   "appDomain": "micmap.co",
   "metro": "Greater Cleveland",
   "sourceFile": "data/cleveland-venues-master.csv",
   "provenanceSourceFile": "research/source-provenance.csv",
   "counts": {
-    "totalCsvRows": 220,
-    "verifiedPublicNights": 169,
+    "totalCsvRows": 227,
+    "verifiedPublicNights": 176,
     "needsVerificationAdminQueueRows": 51,
-    "karaokeRows": 194,
+    "karaokeRows": 201,
     "openMicRows": 25,
     "liveBandRows": 1,
-    "canonicalUniqueVenues": 162,
-    "canonicalUniqueHostsKjs": 71,
-    "rowsWithAddressGeocoded": 215,
+    "canonicalUniqueVenues": 168,
+    "canonicalUniqueHostsKjs": 77,
+    "rowsWithAddressGeocoded": 222,
     "rowsMissingAddressFlagged": 5,
     "rowsMissingDayOfWeekPreserved": 9,
-    "rowsMissingStartTimePreserved": 49,
+    "rowsMissingStartTimePreserved": 50,
     "rowsWithSourcedPrimaryGenre": 25,
-    "rowsWithUnknownNotAFit": 220,
-    "provenanceRecordsCount": 79,
-    "rowsBackfilledWithProvenance": 87
+    "rowsWithUnknownNotAFit": 227,
+    "provenanceRecordsCount": 85,
+    "rowsBackfilledWithProvenance": 94
   },
   "geocodeFailures": [
     {

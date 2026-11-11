@@ -308,6 +308,13 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "786 Front St, Berea, OH 44017": { lat: 41.3868, lng: -81.853 },
   "5348 E Lake Rd, Sheffield Lake, OH 44054": { lat: 41.4929, lng: -82.0987 },
   "5348 Lake Rd, Sheffield Lake, OH 44054": { lat: 41.4929, lng: -82.0987 },
+  "5513 Pearl Rd, Parma, OH 44129": { lat: 41.4119, lng: -81.7357 },
+  "9208 Detroit Ave, Cleveland, OH": { lat: 41.4803, lng: -81.7468 },
+  "9208 Detroit Ave, Cleveland, OH 44102": { lat: 41.4803, lng: -81.7468 },
+  "203 E Royalton Rd, Broadview Heights, OH 44147": { lat: 41.3139, lng: -81.6839 },
+  "1955 Triplett Blvd, Akron, OH 44312": { lat: 41.0434, lng: -81.4571 },
+  "656 Sugar Ln, Elyria, OH 44035": { lat: 41.3607, lng: -82.0729 },
+  "17406 St Clair Ave, Cleveland, OH 44110": { lat: 41.5664, lng: -81.5581 },
 };
 
 export function slugify(input: string): string {

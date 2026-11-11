@@ -17,17 +17,17 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     });
   });
 
-  test("Check 1: Seed reconciliation — Public discovery renders 169 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
+  test("Check 1: Seed reconciliation — Public discovery renders 176 verified nights and 0 needs_verification rows; 10 spot-checks match CSV", async ({
     page,
     request,
   }) => {
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "169 Verified Public Nights"
+      "176 Verified Public Nights"
     );
 
     const cards = page.getByTestId("verified-night-card");
-    await expect(cards).toHaveCount(169);
+    await expect(cards).toHaveCount(176);
 
     // Ensure 0 needs_verification cards are on public discovery
     const needsVerCards = page.locator(
@@ -38,7 +38,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     // Spot-check first 10 rows via API against CSV expectations
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(169);
+    expect(apiData.totalPublicVerifiedCount).toBe(176);
     expect(apiData.nights[0].venueName).toBe("Corky's Place");
     expect(apiData.nights[0].dayOfWeek).toBe("Monday");
     expect(apiData.nights[0].startTime).toBe("5:00 PM");
@@ -52,7 +52,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "51"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "169"
+      "176"
     );
 
     const adminRows = page.getByTestId("admin-verification-row");
@@ -65,13 +65,13 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       "50"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "170"
+      "177"
     );
 
-    // Confirm public discovery now renders 170 verified nights
+    // Confirm public discovery now renders 177 verified nights
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "170 Verified Public Nights"
+      "177 Verified Public Nights"
     );
   });
 
@@ -258,12 +258,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("freshness-badge-warning").first()
     ).toContainText("Call to confirm");
 
-    // Now set to 91 days unconfirmed -> leaves public discovery (169 -> 168) but stays in admin
+    // Now set to 91 days unconfirmed -> leaves public discovery (176 -> 175) but stays in admin
     await page.goto("/admin/stale");
     await page.getByTestId("set-freshness-91d-btn").click();
     await expect(page.getByTestId("admin-expired-90d-count")).toHaveText("1");
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "168"
+      "175"
     );
 
     // Mobile viewport check (390x844 phone)
@@ -330,18 +330,18 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await expect(page.getByTestId("cleveland-interactive-map")).toBeVisible();
     await expect(page.getByTestId("map-legend")).toBeVisible();
     await expect(page.getByTestId("nights-in-view-count")).toContainText(
-      "Showing 169 of 169 nights matching your filters"
+      "Showing 176 of 176 nights matching your filters"
     );
 
-    // 165 geocoded pins on the map + 4 Location pending in list = 169 total verified nights
+    // 172 geocoded pins on the map + 4 Location pending in list = 176 total verified nights
     const allPins = page.getByTestId("map-pin");
-    await expect(allPins).toHaveCount(165);
+    await expect(allPins).toHaveCount(172);
 
     // Zoom to Lakewood & West Side viewport and verify map pins and Nights in View update in sync
     await page.getByTestId("map-region-WEST_SIDE").click();
     const westSidePinCount = await page.getByTestId("map-pin").count();
     expect(westSidePinCount).toBeGreaterThan(0);
-    expect(westSidePinCount).toBeLessThan(165);
+    expect(westSidePinCount).toBeLessThan(172);
     await expect(page.getByTestId("in-view-pin-count")).toHaveText(
       `${westSidePinCount} Pins`
     );
@@ -419,12 +419,12 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("intake-date-input").fill("2026-10-31");
     await page.getByTestId("submit-intake-import-btn").click();
 
-    // Imported row must land in needs_verification (51 -> 52), never straight to public (remains 169)
+    // Imported row must land in needs_verification (51 -> 52), never straight to public (remains 176)
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "52"
     );
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "169"
+      "176"
     );
     await expect(
       page.getByTestId("admin-verification-queue-list")
@@ -433,23 +433,23 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       page.getByTestId("admin-verification-queue-list")
     ).toContainText("Playwright Intake Verification Pass");
 
-    // Now click Verify & Publish on the newly imported row (night-221)
+    // Now click Verify & Publish on the newly imported row (night-228)
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-221"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-228"]'
     );
     await importedRow.getByTestId("verify-and-publish-btn").click();
 
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "170"
+      "177"
     );
     await expect(page.getByTestId("admin-needs-verification-count")).toHaveText(
       "51"
     );
 
-    // Refresh public discovery and confirm 170 Verified Public Nights persists from Supabase DB
+    // Refresh public discovery and confirm 177 Verified Public Nights persists from Supabase DB
     await page.goto("/cleveland");
     await expect(page.getByTestId("public-verified-count")).toContainText(
-      "170 Verified Public Nights"
+      "177 Verified Public Nights"
     );
   });
 
@@ -500,35 +500,35 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
       expect(d.toLowerCase().startsWith("monday")).toBe(true);
     }
 
-    // Verify deterministic Tuesday check on 2nd Tuesday 2026-11-10 (13 Tuesday nights — BOP STOP 3rd Tuesday excluded, 0 Friday cards)
+    // Verify deterministic Tuesday check on 2nd Tuesday 2026-11-10 (16 Tuesday nights — BOP STOP 3rd Tuesday excluded, 0 Friday cards)
     await page.goto("/tonight?date=2026-11-10");
     const tuesdayCards = page.getByTestId("verified-night-card");
-    await expect(tuesdayCards).toHaveCount(13);
-    for (let i = 0; i < 13; i++) {
+    await expect(tuesdayCards).toHaveCount(16);
+    for (let i = 0; i < 16; i++) {
       const d =
         (await tuesdayCards.nth(i).getAttribute("data-day-of-week")) || "";
       expect(d.toLowerCase().startsWith("tuesday")).toBe(true);
     }
 
-    // Verify deterministic Sunday check on 3rd Sunday 2026-11-15 (17 weekly Sunday + 1 Thursday-Sunday = 18 nights — Dunlap's Corner Bar last Sunday excluded)
+    // Verify deterministic Sunday check on 3rd Sunday 2026-11-15 (18 weekly Sunday + 1 Thursday-Sunday = 19 nights — Dunlap's Corner Bar last Sunday excluded)
     await page.goto("/tonight?date=2026-11-15");
     const sundayCards = page.getByTestId("verified-night-card");
-    await expect(sundayCards).toHaveCount(18);
-    for (let i = 0; i < 18; i++) {
+    await expect(sundayCards).toHaveCount(19);
+    for (let i = 0; i < 19; i++) {
       const d =
         (await sundayCards.nth(i).getAttribute("data-day-of-week")) || "";
       expect(d.toLowerCase().startsWith("friday")).toBe(false);
     }
   });
 
-  test("Check 16 (Amendment 4 & Seed Deltas through 2026-11-10): Source Provenance + Poster-as-Source Rule + 220-Row Seed (169 Public / 51 Queue)", async ({
+  test("Check 16 (Amendment 4 & Seed Deltas through 2026-11-11): Source Provenance + Poster-as-Source Rule + 227-Row Seed (176 Public / 51 Queue)", async ({
     page,
     request,
   }) => {
-    // 1. Verify the 220-row seed (169 public verified nights) including the latest 2026-11-06..2026-11-10 rows
+    // 1. Verify the 227-row seed (176 public verified nights) including the latest 2026-11-06..2026-11-11 rows
     const apiRes = await request.get("/api/nights");
     const apiData = await apiRes.json();
-    expect(apiData.totalPublicVerifiedCount).toBe(169);
+    expect(apiData.totalPublicVerifiedCount).toBe(176);
 
     const bSideBrass = apiData.nights.find(
       (n: { venueName: string }) =>
@@ -693,6 +693,79 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     expect(pub1899?.lastConfirmedText).toBe("2026-11-10");
     expect(pub1899?.lat).toBeCloseTo(41.6405, 3);
 
+    // Verify 2026-11-11 midnight FB flyer check (commit 96109c0): 7 rows added, 2 Casey Jones Tavern rows enriched
+    const parmaTap = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Parma Tap House"
+    );
+    expect(parmaTap?.dayOfWeek).toBe("Thursday");
+    expect(parmaTap?.startTime).toBe("8:00 PM");
+    expect(parmaTap?.hostOrKj).toBe(
+      "Bad Boy Billy & Patti Love (Bad Boy Productions)"
+    );
+    expect(parmaTap?.lat).toBeCloseTo(41.4119, 3);
+
+    const cocktailsWed = apiData.nights.find(
+      (n: { venueName: string; dayOfWeek: string }) =>
+        n.venueName === "Cocktails Cleveland" && n.dayOfWeek === "Wednesday"
+    );
+    expect(cocktailsWed?.startTime).toBe("9:00 PM");
+    expect(cocktailsWed?.hostOrKj).toBe("Mighty Marc Productions LLC");
+    expect(cocktailsWed?.lat).toBeCloseTo(41.4803, 3);
+
+    const cocktailsSun = apiData.nights.find(
+      (n: { venueName: string; dayOfWeek: string }) =>
+        n.venueName === "Cocktails Cleveland" && n.dayOfWeek === "Sunday"
+    );
+    expect(cocktailsSun?.startTime).toBe("9:30 PM");
+    expect(cocktailsSun?.hostOrKj).toBe("Mighty Marc Productions LLC");
+    expect(cocktailsSun?.lat).toBeCloseTo(41.4803, 3);
+
+    const valentis = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Valenti's Ristorante"
+    );
+    expect(valentis?.dayOfWeek).toBe("Thursday");
+    expect(valentis?.startTime).toBe("7:00 PM");
+    expect(valentis?.hostOrKj).toBe("DJ Tim");
+    expect(valentis?.lat).toBeCloseTo(41.3139, 3);
+
+    const zodiac = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Zodiac Bar"
+    );
+    expect(zodiac?.dayOfWeek).toBe("Tuesday");
+    expect(zodiac?.startTime).toBe("7:00 PM");
+    expect(zodiac?.hostOrKj).toBe("DJ Sven");
+    expect(zodiac?.lat).toBeCloseTo(41.0434, 3);
+
+    const dirtyDonkey = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "Dirty Donkey Tavern"
+    );
+    expect(dirtyDonkey?.dayOfWeek).toBe("Tuesday");
+    expect(dirtyDonkey?.startTime).toBe("8:00 PM");
+    expect(dirtyDonkey?.hostOrKj).toBe("DJ Jenny");
+    expect(dirtyDonkey?.lat).toBeCloseTo(41.3607, 3);
+
+    const originalGrill = apiData.nights.find(
+      (n: { venueName: string }) => n.venueName === "The Original Grill"
+    );
+    expect(originalGrill?.dayOfWeek).toBe("Tuesday");
+    expect(originalGrill?.startTime).toBe("UNKNOWN");
+    expect(originalGrill?.hostOrKj).toBe("DJ Doc");
+    expect(originalGrill?.lat).toBeCloseTo(41.5664, 3);
+
+    const caseyFri = apiData.nights.find(
+      (n: { venueName: string; dayOfWeek: string }) =>
+        n.venueName === "Casey Jones Tavern" && n.dayOfWeek === "Friday"
+    );
+    expect(caseyFri?.hostOrKj).toBe("Mighty Marc Productions LLC");
+    expect(caseyFri?.lastConfirmedText).toBe("2026-11-11");
+
+    const caseySat = apiData.nights.find(
+      (n: { venueName: string; dayOfWeek: string }) =>
+        n.venueName === "Casey Jones Tavern" && n.dayOfWeek === "Saturday"
+    );
+    expect(caseySat?.hostOrKj).toBe("Mighty Marc Productions LLC");
+    expect(caseySat?.lastConfirmedText).toBe("2026-11-11");
+
     // 2. OS-INTERNAL ONLY: Individual poster profile links never appear in public API or public pages
     for (const n of apiData.nights) {
       expect(n.posterProfileUrl).toBeUndefined();
@@ -713,7 +786,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await firstRow.getByTestId("flag-ask-the-poster-btn").click();
     await expect(firstRow.getByTestId("ask-the-poster-badge")).toBeVisible();
     await expect(page.getByTestId("admin-public-verified-count")).toHaveText(
-      "169"
+      "176"
     );
 
     // Save a drafts-first outreach message to the poster
@@ -751,7 +824,7 @@ test.describe("Mic Map MVP — All 10 Acceptance Criteria Verification Suite", (
     await page.getByTestId("submit-intake-import-btn").click();
 
     const importedRow = page.locator(
-      '[data-testid="admin-verification-row"][data-night-id="night-221"]'
+      '[data-testid="admin-verification-row"][data-night-id="night-228"]'
     );
     await expect(importedRow).toContainText("Test Flyer Poster");
     await expect(importedRow).toContainText(
