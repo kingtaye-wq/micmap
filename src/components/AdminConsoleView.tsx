@@ -150,6 +150,18 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      setCounts((prev) => ({
+        ...prev,
+        needsVerificationCount:
+          typeof data.needsVerificationCount === "number"
+            ? data.needsVerificationCount
+            : prev.needsVerificationCount - 1,
+        publicVerifiedCount:
+          typeof data.publicVerifiedCount === "number"
+            ? data.publicVerifiedCount
+            : prev.publicVerifiedCount + 1,
+      }));
+      setVerificationQueue((prev) => prev.filter((r) => r.id !== nightId));
       await refreshAll();
       setStatusMessage(
         `Promoted "${venueName}" to Public Verified! Public count is now ${data.publicVerifiedCount}.`
@@ -163,6 +175,7 @@ export function AdminConsoleView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "archive", nightId }),
     });
+    setVerificationQueue((prev) => prev.filter((r) => r.id !== nightId));
     await refreshAll();
   }
 
@@ -174,6 +187,21 @@ export function AdminConsoleView({
     });
     const data = await res.json();
     if (data.ok) {
+      setCounts((prev) => ({
+        ...prev,
+        publicVerifiedCount:
+          typeof data.publicVerifiedCount === "number"
+            ? data.publicVerifiedCount
+            : prev.publicVerifiedCount,
+        stale45to89Count:
+          typeof data.stale45to89Count === "number"
+            ? data.stale45to89Count
+            : prev.stale45to89Count,
+        expired90dCount:
+          typeof data.expired90dCount === "number"
+            ? data.expired90dCount
+            : prev.expired90dCount,
+      }));
       await refreshAll();
       setStatusMessage(
         `Updated ${nightId} freshness to ${daysAgo} days ago (${data.updatedNight.freshnessStatus}). Public count: ${data.publicVerifiedCount}.`

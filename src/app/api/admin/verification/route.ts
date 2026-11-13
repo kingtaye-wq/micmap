@@ -121,6 +121,14 @@ export async function POST(request: NextRequest) {
       ok: true,
       updatedNight: updated,
       publicVerifiedCount: getPublicVerifiedNights().length,
+      stale45to89Count: store.nights.filter(
+        (n) =>
+          n.confidence === "verified" &&
+          n.freshnessStatus === "call_to_confirm"
+      ).length,
+      expired90dCount: store.nights.filter(
+        (n) => n.freshnessStatus === "expired_90d"
+      ).length,
     });
   }
 

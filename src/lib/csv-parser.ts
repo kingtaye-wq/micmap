@@ -315,6 +315,11 @@ const ADDRESS_GEOCODE_LOOKUP: Record<string, { lat: number; lng: number }> = {
   "1955 Triplett Blvd, Akron, OH 44312": { lat: 41.0434, lng: -81.4571 },
   "656 Sugar Ln, Elyria, OH 44035": { lat: 41.3607, lng: -82.0729 },
   "17406 St Clair Ave, Cleveland, OH 44110": { lat: 41.5664, lng: -81.5581 },
+  "1054 Old River Rd, Cleveland, OH 44113": { lat: 41.5003, lng: -81.7011 },
+  "323 S Main St, Akron, OH 44308": { lat: 41.0743, lng: -81.519 },
+  "5609 Fulton Dr NW, Canton, OH 44718": { lat: 40.8561, lng: -81.461 },
+  "1941 Triplett Blvd, Akron, OH 44312": { lat: 41.0437, lng: -81.4575 },
+  "6509 Columbus Rd NE, Louisville, OH 44641": { lat: 40.865, lng: -81.2778 },
 };
 
 export function slugify(input: string): string {
